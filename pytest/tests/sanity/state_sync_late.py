@@ -25,7 +25,7 @@ from configured_logger import logger
 from utils import TxContext, LogTracker
 
 START_AT_BLOCK = 75
-TIMEOUT = 150 + START_AT_BLOCK * 10
+TIMEOUT = (150 + START_AT_BLOCK * 10) * 5
 
 config = load_config()
 near_root, node_dirs = init_cluster(
