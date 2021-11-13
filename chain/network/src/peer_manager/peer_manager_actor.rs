@@ -37,9 +37,8 @@ use near_performance_metrics_macros::perf;
 use near_primitives::checked_feature;
 use near_primitives::hash::CryptoHash;
 use near_primitives::network::{AnnounceAccount, PeerId};
-use near_primitives::time::Clock;
+use near_primitives::time::Time;
 use near_primitives::types::{AccountId, ProtocolVersion};
-use near_primitives::utils::from_timestamp;
 use near_rate_limiter::{
     ActixMessageResponse, ActixMessageWrapper, ThrottleController, ThrottleToken,
     ThrottledFrameRead,
@@ -53,7 +52,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Semaphore;
 use tokio_util::sync::PollSemaphore;
@@ -109,11 +108,11 @@ struct ConnectedPeer {
     /// Number of bytes we've sent to the peer.
     sent_bytes_per_sec: u64,
     /// Last time requested peers.
-    last_time_peer_requested: Instant,
+    last_time_peer_requested: Time,
     /// Last time we received a message from this peer.
-    last_time_received_message: Instant,
+    last_time_received_message: Time,
     /// Time where the connection was established.
-    connection_established_time: Instant,
+    connection_established_time: Time,
     /// Who started connection. Inbound (other) or Outbound (us).
     peer_type: PeerType,
     /// A helper data structure for limiting reading, reporting stats.
@@ -482,7 +481,7 @@ impl PeerManagerActor {
         ctx: &mut Context<PeerManagerActor>,
         interval: Duration,
     ) {
-        let start = Clock::instant();
+        let start = Time::now();
         let mut new_edges = Vec::new();
         while let Some(edge) = self.routing_table_exchange_helper.edges_to_add_receiver.pop() {
             new_edges.push(edge);
@@ -637,6 +636,7 @@ impl PeerManagerActor {
             full_peer_info.partial_edge_info.signature.clone(),
         );
 
+        let now = Time::now();
         self.connected_peers.insert(
             target_peer_id.clone(),
             ConnectedPeer {
@@ -644,9 +644,9 @@ impl PeerManagerActor {
                 full_peer_info,
                 sent_bytes_per_sec: 0,
                 received_bytes_per_sec: 0,
-                last_time_peer_requested: Clock::instant(),
-                last_time_received_message: Clock::instant(),
-                connection_established_time: Clock::instant(),
+                last_time_peer_requested: now,
+                last_time_received_message: now,
+                connection_established_time: now,
                 peer_type,
                 throttle_controller: throttle_controller.clone(),
             },
@@ -724,7 +724,7 @@ impl PeerManagerActor {
             // Ask for peers list on connection.
             let _ = addr.do_send(SendMessage { message: PeerMessage::PeersRequest });
             if let Some(active_peer) = act.connected_peers.get_mut(&target_peer_id) {
-                active_peer.last_time_peer_requested = Clock::instant();
+                active_peer.last_time_peer_requested = Time::now();
             }
 
             if peer_type == PeerType::Outbound {
@@ -1003,9 +1003,10 @@ impl PeerManagerActor {
     fn query_active_peers_for_more_peers(&mut self, ctx: &mut Context<Self>) {
         let mut requests = futures::stream::FuturesUnordered::new();
         let msg = SendMessage { message: PeerMessage::PeersRequest };
+        let now = Time::now();
         for (_, active_peer) in self.connected_peers.iter_mut() {
             if active_peer.last_time_peer_requested.elapsed() > REQUEST_PEERS_INTERVAL {
-                active_peer.last_time_peer_requested = Clock::instant();
+                active_peer.last_time_peer_requested = now;
                 requests.push(active_peer.addr.send(msg.clone()));
             }
         }
@@ -1264,12 +1265,12 @@ impl PeerManagerActor {
         (default_interval, max_interval): (Duration, Duration),
     ) {
         let mut to_unban = vec![];
+        let now = Time::now();
         for (peer_id, peer_state) in self.peer_store.iter() {
             if let KnownPeerStatus::Banned(_, last_banned) = peer_state.status {
-                let interval =
-                    (Clock::utc() - from_timestamp(last_banned)).to_std().unwrap_or_default();
-                if interval > self.config.ban_window {
-                    info!(target: "network", unbanned = ?peer_id, after = ?interval, "Monitor peers:");
+                let duration = now.duration_since(last_banned);
+                if duration > self.config.ban_window {
+                    info!(target: "network", unbanned = ?peer_id, after = ?duration, "Monitor peers:");
                     to_unban.push(peer_id.clone());
                 }
             }
