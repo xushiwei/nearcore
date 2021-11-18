@@ -7,6 +7,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context};
 use hyper::body::HttpBody;
+use near_chain::chain::MIN_NUM_EPOCHS_TO_KEEP_STORE_DATA;
 use near_primitives::time::Clock;
 use num_rational::Rational;
 use serde::{Deserialize, Serialize};
@@ -304,6 +305,10 @@ fn default_gc_blocks_limit() -> NumBlocks {
     2
 }
 
+fn default_num_epochs_to_keep_store_data() -> u64 {
+    MIN_NUM_EPOCHS_TO_KEEP_STORE_DATA
+}
+
 fn default_view_client_threads() -> usize {
     4
 }
@@ -433,6 +438,8 @@ pub struct Config {
     /// If set, overrides value in genesis configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_gas_burnt_view: Option<Gas>,
+    #[serde(default = "default_num_epochs_to_keep_store_data")]
+    pub num_epochs_to_keep_store_data: u64,
 }
 
 impl Default for Config {
@@ -459,6 +466,7 @@ impl Default for Config {
             view_client_throttle_period: default_view_client_throttle_period(),
             trie_viewer_state_size_limit: default_trie_viewer_state_size_limit(),
             max_gas_burnt_view: None,
+            num_epochs_to_keep_store_data: default_num_epochs_to_keep_store_data(),
         }
     }
 }
@@ -467,8 +475,11 @@ impl Config {
     pub fn from_file(path: &Path) -> anyhow::Result<Self> {
         let s = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read config from {}", path.display()))?;
-        let config = serde_json::from_str(&s)
+        let config: Config = serde_json::from_str(&s)
             .with_context(|| format!("Failed to deserialize config from {}", path.display()))?;
+        config
+            .verify()
+            .with_context(|| format!("Failed to verify config from {}", path.display()))?;
         Ok(config)
     }
 
@@ -494,6 +505,17 @@ impl Config {
         {
             self.rpc.get_or_insert(Default::default()).addr = addr;
         }
+    }
+
+    pub fn verify(&self) -> anyhow::Result<()> {
+        if self.num_epochs_to_keep_store_data < MIN_NUM_EPOCHS_TO_KEEP_STORE_DATA {
+            bail!(
+                "num_epochs_to_keep_store_data: {} is below: {}",
+                self.num_epochs_to_keep_store_data,
+                MIN_NUM_EPOCHS_TO_KEEP_STORE_DATA
+            );
+        }
+        Ok(())
     }
 }
 

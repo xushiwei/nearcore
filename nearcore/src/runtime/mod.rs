@@ -8,7 +8,7 @@ use borsh::ser::BorshSerialize;
 use borsh::BorshDeserialize;
 use tracing::{debug, error, info, warn};
 
-use near_chain::chain::NUM_EPOCHS_TO_KEEP_STORE_DATA;
+use near_chain::chain::MIN_NUM_EPOCHS_TO_KEEP_STORE_DATA;
 use near_chain::types::{
     ApplySplitStateResult, ApplyTransactionResult, BlockHeaderInfo, ValidatorInfoIdentifier,
 };
@@ -141,6 +141,7 @@ pub struct NightshadeRuntime {
     shard_tracker: ShardTracker,
     genesis_state_roots: Vec<StateRoot>,
     migration_data: Arc<MigrationData>,
+    num_epochs_to_keep_store_data: u64,
 }
 
 impl NightshadeRuntime {
@@ -159,6 +160,7 @@ impl NightshadeRuntime {
             trie_viewer_state_size_limit,
             max_gas_burnt_view,
             None,
+            Some(config.config.num_epochs_to_keep_store_data),
         )
     }
 
@@ -170,6 +172,7 @@ impl NightshadeRuntime {
         trie_viewer_state_size_limit: Option<u64>,
         max_gas_burnt_view: Option<Gas>,
         runtime_config_store: Option<RuntimeConfigStore>,
+        num_epochs_to_keep_store_data: Option<u64>,
     ) -> Self {
         let runtime_config_store = match runtime_config_store {
             Some(store) => store,
@@ -197,6 +200,7 @@ impl NightshadeRuntime {
             EpochManager::new_from_genesis_config(store.clone(), &genesis_config)
                 .expect("Failed to start Epoch Manager"),
         ));
+
         let shard_tracker = ShardTracker::new(tracked_config, epoch_manager.clone());
         NightshadeRuntime {
             genesis_config,
@@ -209,6 +213,9 @@ impl NightshadeRuntime {
             shard_tracker,
             genesis_state_roots: state_roots,
             migration_data: Arc::new(load_migration_data(&genesis.config.chain_id)),
+            num_epochs_to_keep_store_data: num_epochs_to_keep_store_data
+                .unwrap_or_default()
+                .max(MIN_NUM_EPOCHS_TO_KEEP_STORE_DATA),
         }
     }
 
@@ -218,8 +225,18 @@ impl NightshadeRuntime {
         genesis: &Genesis,
         tracked_config: TrackedConfig,
         runtime_config_store: RuntimeConfigStore,
+        num_epochs_to_keep_store_data: Option<u64>,
     ) -> Self {
-        Self::new(home_dir, store, genesis, tracked_config, None, None, Some(runtime_config_store))
+        Self::new(
+            home_dir,
+            store,
+            genesis,
+            tracked_config,
+            None,
+            None,
+            Some(runtime_config_store),
+            num_epochs_to_keep_store_data,
+        )
     }
 
     pub fn test(home_dir: &Path, store: Arc<Store>, genesis: &Genesis) -> Self {
@@ -229,6 +246,23 @@ impl NightshadeRuntime {
             genesis,
             TrackedConfig::new_empty(),
             RuntimeConfigStore::test(),
+            None,
+        )
+    }
+
+    pub fn test_with_num_epochs(
+        home_dir: &Path,
+        store: Arc<Store>,
+        genesis: &Genesis,
+        num_epochs_to_keep_store_data: Option<u64>,
+    ) -> Self {
+        Self::test_with_runtime_config_store(
+            home_dir,
+            store,
+            genesis,
+            TrackedConfig::new_empty(),
+            RuntimeConfigStore::test(),
+            num_epochs_to_keep_store_data,
         )
     }
 
@@ -1208,7 +1242,8 @@ impl RuntimeAdapter for NightshadeRuntime {
             // maintain pointers to avoid cloning.
             let mut last_block_in_prev_epoch = *epoch_first_block_info.prev_hash();
             let mut epoch_start_height = *epoch_first_block_info.height();
-            for _ in 0..NUM_EPOCHS_TO_KEEP_STORE_DATA - 1 {
+
+            for _ in 0..self.num_epochs_to_keep_store_data - 1 {
                 let epoch_first_block =
                     *epoch_manager.get_block_info(&last_block_in_prev_epoch)?.epoch_first_block();
                 let epoch_first_block_info = epoch_manager.get_block_info(&epoch_first_block)?;
@@ -2116,6 +2151,7 @@ mod test {
                 None,
                 None,
                 Some(RuntimeConfigStore::free()),
+                None,
             );
             let (_store, state_roots) = runtime.genesis_state();
             let genesis_hash = hash(&vec![0]);
