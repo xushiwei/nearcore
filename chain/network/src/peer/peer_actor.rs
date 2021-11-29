@@ -1,4 +1,5 @@
 use crate::common::message_wrapper::ActixMessageWrapper;
+use crate::metrics::NETWORK_METRICS;
 use crate::peer::codec::{self, Codec};
 use crate::peer::tracker::Tracker;
 use crate::routing::edge::{Edge, EdgeInfo};
@@ -95,8 +96,6 @@ pub struct PeerActor {
     edge_info: Option<EdgeInfo>,
     /// Last time an update of received message was sent to PeerManager
     last_time_received_message_update: Instant,
-    /// Dynamic Prometheus metrics
-    network_metrics: NetworkMetrics,
     /// How many transactions we have received since the last block message
     /// Note: Shared between multiple Peers.
     txns_since_last_block: Arc<AtomicUsize>,
@@ -127,7 +126,6 @@ impl PeerActor {
         client_addr: Recipient<NetworkClientMessages>,
         view_client_addr: Recipient<NetworkViewClientMessages>,
         edge_info: Option<EdgeInfo>,
-        network_metrics: NetworkMetrics,
         txns_since_last_block: Arc<AtomicUsize>,
         peer_counter: Arc<AtomicUsize>,
         throttle_controller: ThrottleController,
@@ -149,7 +147,6 @@ impl PeerActor {
             chain_info: Default::default(),
             edge_info,
             last_time_received_message_update: Clock::instant(),
-            network_metrics,
             txns_since_last_block,
             peer_counter,
             routed_message_cache: SizedCache::with_size(ROUTED_MESSAGE_CACHE_SIZE),
@@ -702,10 +699,9 @@ impl StreamHandler<Result<Vec<u8>, ReasonForBan>> for PeerActor {
 
         self.on_receive_message();
 
-        self.network_metrics
-            .inc(NetworkMetrics::peer_message_total_rx(peer_msg.msg_variant()).as_ref());
+        NETWORK_METRICS.inc(NetworkMetrics::peer_message_total_rx(peer_msg.msg_variant()).as_ref());
 
-        self.network_metrics.inc_by(
+        NETWORK_METRICS.inc_by(
             NetworkMetrics::peer_message_bytes_rx(peer_msg.msg_variant()).as_ref(),
             msg.len() as u64,
         );

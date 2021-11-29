@@ -90,13 +90,15 @@ pub static DROPPED_MESSAGES_COUNT: Lazy<IntCounter> = Lazy::new(|| {
     .unwrap()
 });
 
+pub static NETWORK_METRICS: Lazy<NetworkMetrics> = Lazy::new(|| NetworkMetrics::new());
+
 #[derive(Clone)]
 pub struct NetworkMetrics {
-    pub peer_messages: HashMap<String, IntCounter>,
+    peer_messages: HashMap<String, IntCounter>,
 }
 
 impl NetworkMetrics {
-    pub fn new() -> Self {
+    fn new() -> Self {
         let mut peer_messages = HashMap::new();
 
         let variants = PeerMessage::VARIANTS

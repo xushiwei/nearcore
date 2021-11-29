@@ -1,4 +1,5 @@
 use crate::common::message_wrapper::{ActixMessageResponse, ActixMessageWrapper};
+use crate::metrics::NETWORK_METRICS;
 use crate::peer::codec::Codec;
 use crate::peer::peer_actor::PeerActor;
 use crate::peer_manager::peer_store::{PeerStore, TrustLevel};
@@ -158,8 +159,6 @@ pub struct PeerManagerActor {
     monitor_peers_attempts: u64,
     /// Active peers we have sent new edge update, but we haven't received response so far.
     local_peer_pending_update_nonce_request: HashMap<PeerId, u64>,
-    /// Dynamic Prometheus metrics
-    network_metrics: NetworkMetrics,
     /// RoutingTableActor, responsible for computing routing table, routing table exchange, etc.
     routing_table_addr: Addr<RoutingTableActor>,
     /// Shared counter across all PeerActors, which counts number of `RoutedMessageBody::ForwardTx`
@@ -239,7 +238,6 @@ impl PeerManagerActor {
             monitor_peers_attempts: 0,
             started_connect_attempts: false,
             local_peer_pending_update_nonce_request: HashMap::new(),
-            network_metrics: NetworkMetrics::new(),
             routing_table_addr,
             txns_since_last_block,
             pending_incoming_connections_counter: Arc::new(AtomicUsize::new(0)),
@@ -739,7 +737,6 @@ impl PeerManagerActor {
             }
         };
 
-        let network_metrics = self.network_metrics.clone();
         let txns_since_last_block = Arc::clone(&self.txns_since_last_block);
 
         // Start every peer actor on separate thread.
@@ -781,7 +778,6 @@ impl PeerManagerActor {
                 client_addr,
                 view_client_addr,
                 edge_info,
-                network_metrics,
                 txns_since_last_block,
                 peer_counter,
                 rate_limiter,
@@ -1309,7 +1305,8 @@ impl PeerManagerActor {
             }
             Err(find_route_error) => {
                 // TODO(MarX, #1369): Message is dropped here. Define policy for this case.
-                self.network_metrics.inc(
+
+                NETWORK_METRICS.inc(
                     NetworkMetrics::peer_message_dropped(strum::AsStaticRef::as_static(&msg.body))
                         .as_str(),
                 );
