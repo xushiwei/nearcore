@@ -1,27 +1,7 @@
-//! A fork of the lighthouse_metrics crate used to implement prometheus
-//!
-//! A wrapper around the `prometheus` crate that provides a global, `lazy_static` metrics registry
-//! and functions to add and use the following components (more info at
-//! [Prometheus docs](https://prometheus.io/docs/concepts/metric_types/)):
-//!
-//! - `Histogram`: used with `start_timer(..)` and `stop_timer(..)` to record durations (e.g.,
-//! block processing time).
-//! - `IncCounter`: used to represent an ideally ever-growing, never-shrinking integer (e.g.,
-//! number of block processing requests).
-//! - `IntGauge`: used to represent an varying integer (e.g., number of attestations per block).
-//!
-//! ## Important
-//!
-//! Metrics will fail if two items have the same `name`. All metrics must have a unique `name`.
-//! Because we use a global registry there is no namespace per crate, it's one big global space.
-//!
-//! See the [Prometheus naming best practices](https://prometheus.io/docs/practices/naming/) when
-//! choosing metric names.
-//!
 pub use prometheus::{
-    Encoder, Histogram, HistogramVec, IntCounter, IntCounterVec, IntGauge, Result, TextEncoder,
+    Encoder, Histogram, HistogramOpts, HistogramVec, IntCounter, IntCounterVec, IntGauge, Opts,
+    Result, TextEncoder,
 };
-use prometheus::{HistogramOpts, Opts};
 
 /// Attempts to crate an `IntCounter`, returning `Err` if the registry does not accept the counter
 /// (potentially due to naming conflict).
