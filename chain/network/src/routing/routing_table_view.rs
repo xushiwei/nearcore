@@ -248,13 +248,13 @@ impl RoutingTableView {
     /// Public interface for `account_peers`
     ///
     /// Get keys currently on cache.
-    pub fn get_accounts_keys(&mut self) -> Vec<AccountId> {
-        self.account_peers.iter().map(|(k, _v)| (k.clone())).collect()
+    pub fn get_accounts_keys(&mut self) -> impl Iterator<Item = &AccountId> {
+        self.account_peers.iter().map(|(k, _v)| (k))
     }
 
     /// Get announce accounts on cache.
-    pub fn get_announce_accounts(&mut self) -> Vec<AnnounceAccount> {
-        self.account_peers.iter().map(|(_k, v)| v).cloned().collect()
+    pub fn get_announce_accounts(&mut self) -> impl Iterator<Item = &AnnounceAccount> {
+        self.account_peers.iter().map(|(_k, v)| v)
     }
 
     /// Get number of accounts
