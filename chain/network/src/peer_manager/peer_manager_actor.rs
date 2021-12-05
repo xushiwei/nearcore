@@ -274,11 +274,14 @@ impl PeerManagerActor {
             .spawn(ctx);
     }
 
+    /// Adds local edges to `local_edges_info`, and then send an request to `RoutingTableActor`
+    /// to recompute routing table.
     fn add_verified_edges_to_routing_table(
         &mut self,
         ctx: &mut Context<Self>,
         edges: Vec<Edge>,
         broadcast_edges: bool,
+        update_routing_table_now: bool,
     ) {
         if edges.is_empty() {
             return;
@@ -309,6 +312,14 @@ impl PeerManagerActor {
                                 message: PeerMessage::SyncRoutingTable(sync_routing_table),
                             },
                         )
+                    }
+                    // After we add or remove local peer, we should update routing table imediately.
+                    if update_routing_table_now {
+                        act.update_routing_table_and_prune_edges(
+                            ctx,
+                            Prune::Disable,
+                            DELETE_PEERS_AFTER_TIME,
+                        );
                     }
                 }
                 _ => error!(target: "network", "expected AddIbfSetResponse"),
@@ -412,7 +423,7 @@ impl PeerManagerActor {
                 }
             }
             // Add new edge update to the routing table and broadcast it to peers.
-            self.add_verified_edges_to_routing_table(ctx, new_edges, true);
+            self.add_verified_edges_to_routing_table(ctx, new_edges, true, false);
         };
 
         near_performance_metrics::actix::run_later(ctx, interval, move |act, ctx| {
@@ -538,7 +549,7 @@ impl PeerManagerActor {
             },
         );
 
-        self.add_verified_edges_to_routing_table(ctx, vec![new_edge.clone()], false);
+        self.add_verified_edges_to_routing_table(ctx, vec![new_edge.clone()], false, true);
 
         checked_feature!(
             "protocol_feature_routing_exchange_algorithm",
@@ -660,7 +671,12 @@ impl PeerManagerActor {
             if edge.edge_type() == EdgeState::Active {
                 let edge_update =
                     edge.remove_edge(self.my_peer_id.clone(), &self.config.secret_key);
-                self.add_verified_edges_to_routing_table(ctx, vec![edge_update.clone()], false);
+                self.add_verified_edges_to_routing_table(
+                    ctx,
+                    vec![edge_update.clone()],
+                    false,
+                    true,
+                );
                 self.broadcast_message(
                     ctx,
                     SendMessage {
@@ -1902,7 +1918,12 @@ impl PeerManagerActor {
                         edge_info.signature,
                     );
 
-                    self.add_verified_edges_to_routing_table(ctx, vec![new_edge.clone()], false);
+                    self.add_verified_edges_to_routing_table(
+                        ctx,
+                        vec![new_edge.clone()],
+                        false,
+                        true,
+                    );
                     NetworkResponses::EdgeUpdate(Box::new(new_edge))
                 } else {
                     NetworkResponses::BanPeer(ReasonForBan::InvalidEdge)
@@ -1920,7 +1941,7 @@ impl PeerManagerActor {
                             }
                         }
                     }
-                    self.add_verified_edges_to_routing_table(ctx, vec![edge.clone()], false);
+                    self.add_verified_edges_to_routing_table(ctx, vec![edge.clone()], false, true);
                     NetworkResponses::NoResponse
                 } else {
                     NetworkResponses::BanPeer(ReasonForBan::InvalidEdge)
@@ -1986,7 +2007,7 @@ impl PeerManagerActor {
     ) {
         if let Some(add_edges) = msg.add_edges {
             debug!(target: "network", "test_features add_edges {}", add_edges.len());
-            self.add_verified_edges_to_routing_table(ctx, add_edges, false);
+            self.add_verified_edges_to_routing_table(ctx, add_edges, false, true);
         }
         if let Some(remove_edges) = msg.remove_edges {
             debug!(target: "network", "test_features remove_edges {}", remove_edges.len());
