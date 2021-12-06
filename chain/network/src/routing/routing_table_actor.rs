@@ -183,7 +183,7 @@ impl RoutingTableActor {
     /// Step 1 ) `A`, `B` get removed.
     /// We store edges belonging to `A` and `B`: `<A,B>, <A,C>, <A, D>, <B, C>, <B, D>`
     /// into component 1 let's call it `C_1`.
-    /// And mapping from `A` to `C_1`, and from `B` to `C_2`
+    /// And mapping from `A` to `C_1`, and from `B` to `C_1`
     ///
     /// Note that `C`, `D` is still active.
     ///
@@ -238,14 +238,10 @@ impl RoutingTableActor {
                                     ColPeerComponent,
                                     peer_id.try_to_vec().unwrap().as_ref(),
                                 );
-                            } else {
-                                warn!("We expected `peer_id` to belong to component {}, but it belongs to {}",
-                                       component_nonce, cur_nonce);
                             }
-                        } else {
-                            warn!("We expected `peer_id` to belong to a component {}, but it doesn't belong anywhere",
-                                       component_nonce);
+                            // else case can happen, see explanation of this function.
                         }
+                        // else case can happen, see explanation of this function.
                     }
                     self.add_verified_edge(edge);
                 }
