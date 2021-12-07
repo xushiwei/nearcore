@@ -1,5 +1,6 @@
 use actix::dev::{MessageResponse, ResponseChannel};
 use actix::{Actor, Message};
+use anyhow::{bail, Result};
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 #[cfg(feature = "deepsize_feature")]
@@ -32,7 +33,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use strum::AsStaticStr;
 use tokio::net::TcpStream;
-use tracing::{error, warn};
+use tracing::warn;
 
 /// Number of hops a message is allowed to travel before being dropped.
 /// This is used to avoid infinite loop because of inconsistent view of the network
@@ -584,15 +585,17 @@ impl NetworkConfig {
         }
     }
 
-    pub fn verify(&self) {
+    pub fn verify(&self) -> Result<()> {
         if self.ideal_connections_lo + 1 >= self.ideal_connections_hi {
-            error!(target: "network",
-            "Invalid ideal_connections values. lo({}) > hi({}).",
-            self.ideal_connections_lo, self.ideal_connections_hi);
+            bail!(
+                "Invalid ideal_connections values. lo({}) > hi({}).",
+                self.ideal_connections_lo,
+                self.ideal_connections_hi
+            );
         }
 
         if self.ideal_connections_hi >= self.max_num_peers {
-            error!(target: "network",
+            bail!(
                 "max_num_peers({}) is below ideal_connections_hi({}) which may lead to connection saturation and declining new connections.",
                 self.max_num_peers, self.ideal_connections_hi
             );
@@ -603,7 +606,7 @@ impl NetworkConfig {
         }
 
         if self.safe_set_size <= self.minimum_outbound_peers {
-            error!(target: "network",
+            bail!(
                 "safe_set_size({}) must be larger than minimum_outbound_peers({}).",
                 self.safe_set_size,
                 self.minimum_outbound_peers
@@ -611,12 +614,12 @@ impl NetworkConfig {
         }
 
         if UPDATE_INTERVAL_LAST_TIME_RECEIVED_MESSAGE * 2 > self.peer_recent_time_window {
-            error!(
-                target: "network",
+            bail!(
                 "Very short peer_recent_time_window({}). it should be at least twice update_interval_last_time_received_message({}).",
                 self.peer_recent_time_window.as_secs(), UPDATE_INTERVAL_LAST_TIME_RECEIVED_MESSAGE.as_secs()
             );
         }
+        Ok(())
     }
 }
 

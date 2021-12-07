@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+use anyhow::{Context, Result};
 use tokio::sync::mpsc;
 
 pub use near_primitives;
@@ -87,7 +88,7 @@ pub struct Indexer {
 
 impl Indexer {
     /// Initialize Indexer by configuring `nearcore`
-    pub fn new(indexer_config: IndexerConfig) -> Self {
+    pub fn new(indexer_config: IndexerConfig) -> Result<Self> {
         tracing::info!(
             target: INDEXER,
             "Load config from {}...",
@@ -105,8 +106,9 @@ impl Indexer {
             indexer_config.home_dir.join("config.json").display()
         );
         let nearcore::NearNode { client, view_client, .. } =
-            nearcore::start_with_config(&indexer_config.home_dir, near_config.clone());
-        Self { view_client, client, near_config, indexer_config }
+            nearcore::start_with_config(&indexer_config.home_dir, near_config.clone())
+                .with_context(|| "start_with_config")?;
+        Ok(Self { view_client, client, near_config, indexer_config })
     }
 
     /// Boots up `near_indexer::streamer`, so it monitors the new blocks with chunks, transactions, receipts, and execution outcomes inside. The returned stream handler should be drained and handled on the user side.
