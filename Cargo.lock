@@ -918,28 +918,24 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.0.0-beta.2"
+version = "3.0.0-rc.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bd1061998a501ee7d4b6d449020df3266ca3124b941ec56cf2005c3779ca142"
+checksum = "9468f8012246b0836c6fd11725102b0844254985f2462b6c637d50040ef49df0"
 dependencies = [
  "atty",
  "bitflags",
- "clap_derive",
  "indexmap",
- "lazy_static",
  "os_str_bytes",
  "strsim 0.10.0",
  "termcolor",
- "textwrap 0.12.1",
- "unicode-width",
- "vec_map",
+ "textwrap 0.14.2",
 ]
 
 [[package]]
 name = "clap_derive"
-version = "3.0.0-beta.2"
+version = "3.0.0-rc.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "370f715b81112975b1b69db93e0b56ea4cd4e5002ac43b2da8474106a54096a1"
+checksum = "b72e1af32a4de4d21a43d26de33fe69c00e895371bd8b1523d674f011b610467"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -2099,7 +2095,8 @@ name = "indexer-example"
 version = "0.0.0"
 dependencies = [
  "actix",
- "clap 3.0.0-beta.2",
+ "clap 3.0.0-rc.7",
+ "clap_derive",
  "near-indexer",
  "openssl-probe",
  "serde_json",
@@ -3319,7 +3316,7 @@ name = "near-vm-runner-standalone"
 version = "0.0.0"
 dependencies = [
  "base64 0.13.0",
- "clap 3.0.0-beta.2",
+ "clap 3.0.0-rc.7",
  "clap_derive",
  "hex",
  "near-primitives",
@@ -3393,7 +3390,8 @@ name = "neard"
 version = "0.0.0"
 dependencies = [
  "actix",
- "clap 3.0.0-beta.2",
+ "clap 3.0.0-rc.7",
+ "clap_derive",
  "futures",
  "git-version",
  "near-performance-metrics",
@@ -3612,9 +3610,12 @@ dependencies = [
 
 [[package]]
 name = "os_str_bytes"
-version = "2.4.0"
+version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afb2e1c3ee07430c2cf76151675e583e0f19985fa6efae47d6848a3e2c824f85"
+checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
+dependencies = [
+ "memchr",
+]
 
 [[package]]
 name = "page_size"
@@ -4350,7 +4351,8 @@ dependencies = [
 name = "restored-receipts-verifier"
 version = "0.0.0"
 dependencies = [
- "clap 3.0.0-beta.2",
+ "clap 3.0.0-rc.7",
+ "clap_derive",
  "near-chain",
  "near-jsonrpc",
  "near-primitives",
@@ -4413,7 +4415,8 @@ dependencies = [
  "borsh 0.9.1",
  "cfg-if 1.0.0",
  "chrono",
- "clap 3.0.0-beta.2",
+ "clap 3.0.0-rc.7",
+ "clap_derive",
  "csv",
  "genesis-populate",
  "glob",
@@ -4798,7 +4801,8 @@ version = "0.0.0"
 dependencies = [
  "ansi_term 0.12.1",
  "borsh 0.9.1",
- "clap 3.0.0-beta.2",
+ "clap 3.0.0-rc.7",
+ "clap_derive",
  "near-chain",
  "near-chain-configs",
  "near-client",
@@ -5081,12 +5085,9 @@ dependencies = [
 
 [[package]]
 name = "textwrap"
-version = "0.12.1"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "203008d98caf094106cfaba70acfed15e18ed3ddb7d94e49baec153a2b462789"
-dependencies = [
- "unicode-width",
-]
+checksum = "0066c8d12af8b5acd21e00547c3797fde4e8677254a7ee429176ccebbe93dd80"
 
 [[package]]
 name = "themis"
