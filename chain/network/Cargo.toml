@@ -38,7 +38,8 @@ near-stable-hasher = { path = "../../utils/near-stable-hasher", optional = true 
 near-store = { path = "../../core/store" }
 
 [dev-dependencies]
-bencher = "0.1.5"
+cast = "0.2.5"
+criterion = { version = "0.3.5", default_features = false }
 tempfile = "3"
 
 [features]
