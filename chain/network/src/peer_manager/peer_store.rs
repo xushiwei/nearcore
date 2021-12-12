@@ -59,7 +59,7 @@ impl PeerStore {
         let mut peer_states = HashMap::default();
         let mut addr_peers = HashMap::default();
 
-        for peer_info in boot_nodes.iter() {
+        boot_nodes.iter().for_each(|peer_info|{
             if !peer_states.contains_key(&peer_info.id) {
                 if let Some(peer_addr) = peer_info.addr {
                     match addr_peers.entry(peer_addr) {
@@ -77,7 +77,7 @@ impl PeerStore {
                     }
                 }
             }
-        }
+        });
 
         let now = to_timestamp(Utc::now());
         for (key, value) in store.iter(ColPeers) {
@@ -85,23 +85,25 @@ impl PeerStore {
             let mut peer_state: KnownPeerState = KnownPeerState::try_from_slice(value.as_ref())?;
             // Mark loaded node last seen to now, to avoid deleting them as soon as they are loaded.
             peer_state.last_seen = now;
-            match peer_state.status {
-                KnownPeerStatus::Banned(_, _) => {}
-                _ => peer_state.status = KnownPeerStatus::NotConnected,
+            peer_state.status = match peer_state.status {
+                banned_status @ KnownPeerStatus::Banned(_, _) => banned_status,
+                _ => KnownPeerStatus::NotConnected,
             };
 
-            if let Some(current_peer_state) = peer_states.get_mut(&peer_id) {
-                // This peer is a boot node and was already added so skip.
-                if peer_state.status.is_banned() {
-                    current_peer_state.status = peer_state.status;
+            match peer_states.entry(peer_id) {
+                Entry::Occupied(mut current_peer_state) => {
+                    // This peer is a boot node and was already added so skip.
+                    if peer_state.status.is_banned() {
+                        current_peer_state.get_mut().status = peer_state.status;
+                    }
                 }
-                continue;
-            }
-
-            if let Some(peer_addr) = peer_state.peer_info.addr {
-                if let Entry::Vacant(entry) = addr_peers.entry(peer_addr) {
-                    entry.insert(VerifiedPeer::new(peer_state.peer_info.id.clone()));
-                    peer_states.insert(peer_id, peer_state);
+                Entry::Vacant(entry) => {
+                    if let Some(peer_addr) = peer_state.peer_info.addr {
+                        if let Entry::Vacant(entry2) = addr_peers.entry(peer_addr) {
+                            entry2.insert(VerifiedPeer::new(peer_state.peer_info.id.clone()));
+                            entry.insert(peer_state);
+                        }
+                    }
                 }
             }
         }
