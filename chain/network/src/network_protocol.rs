@@ -267,6 +267,8 @@ pub enum HandshakeFailureReason {
     GenesisMismatch(GenesisId),
     InvalidTarget,
 }
+const _: () =
+    assert!(std::mem::size_of::<HandshakeFailureReason>() <= 64, "HandshakeFailureReason");
 
 impl fmt::Display for HandshakeFailureReason {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -327,6 +329,7 @@ pub enum PeerMessage {
     #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
     RoutingTableSyncV2(RoutingSyncV2),
 }
+const _: () = assert!(std::mem::size_of::<PeerMessage>() <= 1144, "PeerMessage");
 
 #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
 #[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
@@ -334,6 +337,8 @@ pub enum PeerMessage {
 pub enum RoutingSyncV2 {
     Version2(RoutingVersion2),
 }
+#[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
+const _: () = assert!(std::mem::size_of::<RoutingSyncV2>() <= 80, "RoutingSyncV2");
 
 #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
 #[cfg_attr(feature = "deepsize_feature", derive(deepsize::DeepSizeOf))]
@@ -424,8 +429,3 @@ impl PeerMessage {
         }
     }
 }
-
-const _: () =
-    assert!(std::mem::size_of::<HandshakeFailureReason>() <= 64, "HandshakeFailureReason");
-const _: () = assert!(std::mem::size_of::<PeerMessage>() <= 1144, "PeerMessage");
-const _: () = assert!(std::mem::size_of::<RoutingSyncV2>() <= 80, "RoutingSyncV2");
