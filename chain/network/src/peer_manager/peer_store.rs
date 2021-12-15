@@ -63,7 +63,7 @@ impl PeerStore {
         // In case of collision, we will choose the first one.
         let mut addr_2_peer = HashMap::default();
 
-        let now = to_timestamp(Clock::utc());
+        let now = Clock::utc();
         boot_nodes.iter().for_each(|peer_info|{
             if !peerid_2_state.contains_key(&peer_info.id) {
                 if let Some(peer_addr) = peer_info.addr {
@@ -317,7 +317,7 @@ impl PeerStore {
         self.peer_states
             .entry(peer_info.id.clone())
             .and_modify(|peer_state| peer_state.peer_info.addr = Some(peer_addr))
-            .or_insert_with(|| KnownPeerState::new(peer_info.clone()));
+            .or_insert_with(|| KnownPeerState::new(peer_info.clone(), Clock::utc()));
 
         self.touch(&peer_info.id)?;
         if let Some(touch_other) = touch_other {
@@ -370,7 +370,8 @@ impl PeerStore {
             // If doesn't have the address attached it is not verified and we add it
             // only if it is unknown to us.
             if !self.peer_states.contains_key(&peer_info.id) {
-                self.peer_states.insert(peer_info.id.clone(), KnownPeerState::new(peer_info));
+                self.peer_states
+                    .insert(peer_info.id.clone(), KnownPeerState::new(peer_info, Clock::utc()));
             }
         }
         Ok(())

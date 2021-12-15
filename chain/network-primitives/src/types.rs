@@ -18,7 +18,7 @@ use near_primitives::syncing::{
 use near_primitives::time::Utc;
 use near_primitives::transaction::{ExecutionOutcomeWithIdAndProof, SignedTransaction};
 use near_primitives::types::{AccountId, BlockHeight, BlockReference, EpochId, ShardId};
-use near_primitives::utils::from_timestamp;
+use near_primitives::utils::{from_timestamp, to_timestamp};
 use near_primitives::views::{FinalExecutionOutcomeView, QueryRequest, QueryResponse};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -674,12 +674,12 @@ pub struct KnownPeerState {
 }
 
 impl KnownPeerState {
-    pub fn new(peer_info: PeerInfo, now: u64) -> Self {
+    pub fn new(peer_info: PeerInfo, now: DateTime<Utc>) -> Self {
         KnownPeerState {
             peer_info,
             status: KnownPeerStatus::Unknown,
-            first_seen: now,
-            last_seen: now,
+            first_seen: to_timestamp(now),
+            last_seen: to_timestamp(now),
         }
     }
 
