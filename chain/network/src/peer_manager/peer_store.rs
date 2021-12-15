@@ -71,7 +71,7 @@ impl PeerStore {
                         Entry::Occupied(entry) => {
                             // There is already a different peer_id with this address.
                             error!(target: "network", "Two boot nodes have the same address {:?}", entry.key());
-                            // TODO: add panic!, `boot_nodes` list is wrolng
+                            // TODO: add panic!, `boot_nodes` list is wrong
                         }
                         Entry::Vacant(entry) => {
                             entry.insert(VerifiedPeer::signed(peer_info.id.clone()));
@@ -127,6 +127,7 @@ impl PeerStore {
                         }
                         // else: There already exists a peer with a different addr, that's a boot node.
                         // Note: We don't load this entry into the memory, but it still stays on disk.
+                    }
                 }
             }
         }
