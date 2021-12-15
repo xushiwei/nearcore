@@ -425,26 +425,7 @@ impl PeerMessage {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-    macro_rules! assert_size {
-        ($type:ident, $allowed_size: expr) => {
-            let struct_size = std::mem::size_of::<$type>();
-            assert!(
-                struct_size <= $allowed_size,
-                "The size of {} is {}",
-                stringify!($type),
-                struct_size
-            )
-        };
-    }
-
-    #[test]
-    fn test_assert_size() {
-        assert_size!(HandshakeFailureReason, 64);
-        assert_size!(PeerMessage, 1144);
-        #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
-        assert_size!(RoutingSyncV2, 80);
-    }
-}
+const _: () =
+    assert!(std::mem::size_of::<HandshakeFailureReason>() <= 64, "HandshakeFailureReason");
+const _: () = assert!(std::mem::size_of::<PeerMessage>() <= 1144, "PeerMessage");
+const _: () = assert!(std::mem::size_of::<RoutingSyncV2>() <= 80, "RoutingSyncV2");
