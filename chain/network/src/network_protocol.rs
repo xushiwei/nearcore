@@ -312,7 +312,7 @@ pub enum PeerMessage {
     Block(Block),
 
     Transaction(SignedTransaction),
-    Routed(RoutedMessage),
+    Routed(Box<RoutedMessage>),
 
     /// Gracefully disconnect from other peer.
     Disconnect,
@@ -422,5 +422,29 @@ impl PeerMessage {
             PeerMessage::EpochSyncFinalizationRequest(_) => true,
             _ => false,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    macro_rules! assert_size {
+        ($type:ident, $allowed_size: expr) => {
+            let struct_size = std::mem::size_of::<$type>();
+            assert!(
+                struct_size <= $allowed_size,
+                "The size of {} is {}",
+                stringify!($type),
+                struct_size
+            )
+        };
+    }
+
+    #[test]
+    fn test_assert_size() {
+        assert_size!(HandshakeFailureReason, 64);
+        assert_size!(PeerMessage, 1144);
+        #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
+        assert_size!(RoutingSyncV2, 80);
     }
 }

@@ -1359,7 +1359,11 @@ impl PeerManagerActor {
 
     /// Route signed message to target peer.
     /// Return whether the message is sent or not.
-    fn send_signed_message_to_peer(&mut self, ctx: &mut Context<Self>, msg: RoutedMessage) -> bool {
+    fn send_signed_message_to_peer(
+        &mut self,
+        ctx: &mut Context<Self>,
+        msg: Box<RoutedMessage>,
+    ) -> bool {
         // Check if the message is for myself and don't try to send it in that case.
         if let PeerIdOrHash::PeerId(target) = &msg.target {
             if target == &self.my_peer_id {
@@ -1432,7 +1436,7 @@ impl PeerManagerActor {
         self.send_message_to_peer(ctx, msg)
     }
 
-    fn sign_routed_message(&self, msg: RawRoutedMessage) -> RoutedMessage {
+    fn sign_routed_message(&self, msg: RawRoutedMessage) -> Box<RoutedMessage> {
         msg.sign(self.my_peer_id.clone(), &self.config.secret_key, self.config.routed_message_ttl)
     }
 
@@ -2377,7 +2381,7 @@ impl PeerManagerActor {
         let RoutedMessageFrom { mut msg, from } = msg;
 
         if msg.expect_response() {
-            trace!(target: "network", "Received peer message that requires route back: {}", PeerMessage::Routed(msg.clone()));
+            trace!(target: "network", "Received peer message that requires route back: {:?}", msg);
             self.routing_table_view.add_route_back(msg.hash(), from.clone());
         }
 

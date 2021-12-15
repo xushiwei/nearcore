@@ -388,11 +388,11 @@ impl RawRoutedMessage {
         author: PeerId,
         secret_key: &SecretKey,
         routed_message_ttl: u8,
-    ) -> RoutedMessage {
+    ) -> Box<RoutedMessage> {
         let target = self.target.peer_id_or_hash().unwrap();
         let hash = RoutedMessage::build_hash(&target, &author, &self.body);
         let signature = secret_key.sign(hash.as_ref());
-        RoutedMessage { target, author, signature, ttl: routed_message_ttl, body: self.body }
+        RoutedMessage { target, author, signature, ttl: routed_message_ttl, body: self.body }.into()
     }
 }
 
@@ -470,7 +470,7 @@ impl RoutedMessage {
 #[derive(Clone, Debug)]
 pub struct RoutedMessageFrom {
     /// Routed messages.
-    pub msg: RoutedMessage,
+    pub msg: Box<RoutedMessage>,
     /// Previous hop in the route. Used for messages that needs routing back.
     pub from: PeerId,
 }
