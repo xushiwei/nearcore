@@ -674,12 +674,12 @@ pub struct KnownPeerState {
 }
 
 impl KnownPeerState {
-    pub fn new(peer_info: PeerInfo) -> Self {
+    pub fn new(peer_info: PeerInfo, now: u64) -> Self {
         KnownPeerState {
             peer_info,
             status: KnownPeerStatus::Unknown,
-            first_seen: to_timestamp(Clock::utc()),
-            last_seen: to_timestamp(Clock::utc()),
+            first_seen: now,
+            last_seen: now,
         }
     }
 

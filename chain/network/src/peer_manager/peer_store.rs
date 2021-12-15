@@ -3,7 +3,7 @@ use near_network_primitives::types::{
     KnownPeerState, KnownPeerStatus, NetworkConfig, PeerInfo, ReasonForBan,
 };
 use near_primitives::network::PeerId;
-use near_primitives::time::Utc;
+use near_primitives::time::{Clock, Utc};
 use near_primitives::utils::to_timestamp;
 use near_store::{ColPeers, Store};
 use rand::seq::SliceRandom;
@@ -56,9 +56,14 @@ impl PeerStore {
         store: Arc<Store>,
         boot_nodes: &[PeerInfo],
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        // A mapping from `PeerId` to `KnownPeerState`.
         let mut peer_states = HashMap::default();
+        // Stores mapping from `SocketAddr` to `VerifiedPeer`, which contains `PeerId`.
+        // Only one peer can exist with given `PeerId` or `SocketAddr`.
+        // In case of collision, we will choose the first one.
         let mut addr_peers = HashMap::default();
 
+        let now = to_timestamp(Clock::utc());
         boot_nodes.iter().for_each(|peer_info|{
             if !peer_states.contains_key(&peer_info.id) {
                 if let Some(peer_addr) = peer_info.addr {
@@ -71,7 +76,7 @@ impl PeerStore {
                             entry.insert(VerifiedPeer::signed(peer_info.id.clone()));
                             peer_states.insert(
                                 peer_info.id.clone(),
-                                KnownPeerState::new(peer_info.clone()),
+                                KnownPeerState::new(peer_info.clone(), now),
                             );
                         }
                     }
@@ -84,6 +89,7 @@ impl PeerStore {
             let peer_id: PeerId = PeerId::try_from_slice(key.as_ref())?;
             let peer_state: KnownPeerState = KnownPeerState::try_from_slice(value.as_ref())?;
             // Mark loaded node last seen to now, to avoid deleting them as soon as they are loaded.
+
             let peer_state = KnownPeerState {
                 peer_info: peer_state.peer_info,
                 first_seen: peer_state.first_seen,
@@ -100,6 +106,10 @@ impl PeerStore {
                     if peer_state.status.is_banned() {
                         current_peer_state.get_mut().status = peer_state.status;
                     }
+                    // Maybe a bug:
+                    // If loaded, from a store, but is also in boot nodes, his first seen will be now?
+                    // Maybe add:
+                    // current_peer_state.get_mut().first_seen = std::cmp::min(peer_state.peer_info, current_peer_state.get().first_seen)
                 }
                 Entry::Vacant(entry) => {
                     if let Some(peer_addr) = peer_state.peer_info.addr {
