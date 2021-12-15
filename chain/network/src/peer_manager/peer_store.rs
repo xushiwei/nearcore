@@ -101,15 +101,14 @@ impl PeerStore {
             };
 
             match peer_states.entry(peer_id) {
+                // If peer is a boot node.
                 Entry::Occupied(mut current_peer_state) => {
-                    // This peer is a boot node and was already added so skip.
                     if peer_state.status.is_banned() {
+                        // Load from database that it was banned, if it was.
                         current_peer_state.get_mut().status = peer_state.status;
                     }
                     // Maybe a bug:
-                    // If loaded, from a store, but is also in boot nodes, his first seen will be now?
-                    // Maybe add:
-                    // current_peer_state.get_mut().first_seen = std::cmp::min(peer_state.peer_info, current_peer_state.get().first_seen)
+                    // For boot node, it's first_seen = now
                 }
                 Entry::Vacant(entry) => {
                     if let Some(peer_addr) = peer_state.peer_info.addr {

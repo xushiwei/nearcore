@@ -15,10 +15,10 @@ use near_primitives::syncing::{
     EpochSyncFinalizationResponse, EpochSyncResponse, ShardStateSyncResponse,
     ShardStateSyncResponseV1,
 };
-use near_primitives::time::{Clock, Utc};
+use near_primitives::time::Utc;
 use near_primitives::transaction::{ExecutionOutcomeWithIdAndProof, SignedTransaction};
 use near_primitives::types::{AccountId, BlockHeight, BlockReference, EpochId, ShardId};
-use near_primitives::utils::{from_timestamp, to_timestamp};
+use near_primitives::utils::from_timestamp;
 use near_primitives::views::{FinalExecutionOutcomeView, QueryRequest, QueryResponse};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
