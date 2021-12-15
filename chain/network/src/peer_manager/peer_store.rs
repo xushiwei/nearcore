@@ -57,17 +57,17 @@ impl PeerStore {
         boot_nodes: &[PeerInfo],
     ) -> Result<Self, Box<dyn std::error::Error>> {
         // A mapping from `PeerId` to `KnownPeerState`.
-        let mut peer_states = HashMap::default();
+        let mut peerid_2_state = HashMap::default();
         // Stores mapping from `SocketAddr` to `VerifiedPeer`, which contains `PeerId`.
         // Only one peer can exist with given `PeerId` or `SocketAddr`.
         // In case of collision, we will choose the first one.
-        let mut addr_peers = HashMap::default();
+        let mut addr_2_peer = HashMap::default();
 
         let now = to_timestamp(Clock::utc());
         boot_nodes.iter().for_each(|peer_info|{
-            if !peer_states.contains_key(&peer_info.id) {
+            if !peerid_2_state.contains_key(&peer_info.id) {
                 if let Some(peer_addr) = peer_info.addr {
-                    match addr_peers.entry(peer_addr) {
+                    match addr_2_peer.entry(peer_addr) {
                         Entry::Occupied(entry) => {
                             // There is already a different peer_id with this address.
                             error!(target: "network", "Two boot nodes have the same address {:?}", entry.key());
@@ -75,7 +75,7 @@ impl PeerStore {
                         }
                         Entry::Vacant(entry) => {
                             entry.insert(VerifiedPeer::signed(peer_info.id.clone()));
-                            peer_states.insert(
+                            peerid_2_state.insert(
                                 peer_info.id.clone(),
                                 KnownPeerState::new(peer_info.clone(), now),
                             );
@@ -105,11 +105,11 @@ impl PeerStore {
                 },
             };
 
-            match peer_states.entry(peer_id) {
-                // If peer is a boot node.
+            match peerid_2_state.entry(peer_id) {
+                // Peer is a boot node
                 Entry::Occupied(mut current_peer_state) => {
                     if peer_state.status.is_banned() {
-                        // Load from database that it was banned, if it was.
+                        // If it says in database, that peer should be banned, ban the peer.
                         current_peer_state.get_mut().status = peer_state.status;
                     }
                     // Maybe a bug:
@@ -117,17 +117,20 @@ impl PeerStore {
                     // TODO: consider adding
                     // current_peer_state.get_mut().first_seen = peer_state.first_seen;
                 }
+                // Peer is not a boot node
                 Entry::Vacant(entry) => {
                     if let Some(peer_addr) = peer_state.peer_info.addr {
-                        if let Entry::Vacant(entry2) = addr_peers.entry(peer_addr) {
+                        if let Entry::Vacant(entry2) = addr_2_peer.entry(peer_addr) {
+                            // Default case, add new entry.
                             entry2.insert(VerifiedPeer::new(peer_state.peer_info.id.clone()));
                             entry.insert(peer_state);
                         }
-                    }
+                        // else: There already exists a peer with a different addr, that's a boot node.
+                        // Note: We don't load this entry into the memory, but it still stays on disk.
                 }
             }
         }
-        Ok(PeerStore { store, peer_states, addr_peers })
+        Ok(PeerStore { store, peer_states: peerid_2_state, addr_peers: addr_2_peer })
     }
 
     pub(crate) fn len(&self) -> usize {
