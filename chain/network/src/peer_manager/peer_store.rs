@@ -109,6 +109,8 @@ impl PeerStore {
                     }
                     // Maybe a bug:
                     // For boot node, it's first_seen = now
+                    // TODO: consider adding
+                    // current_peer_state.get_mut().first_seen = peer_state.first_seen;
                 }
                 Entry::Vacant(entry) => {
                     if let Some(peer_addr) = peer_state.peer_info.addr {
