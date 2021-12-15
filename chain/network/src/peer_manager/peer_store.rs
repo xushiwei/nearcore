@@ -82,12 +82,16 @@ impl PeerStore {
         let now = to_timestamp(Utc::now());
         for (key, value) in store.iter(ColPeers) {
             let peer_id: PeerId = PeerId::try_from_slice(key.as_ref())?;
-            let mut peer_state: KnownPeerState = KnownPeerState::try_from_slice(value.as_ref())?;
+            let peer_state: KnownPeerState = KnownPeerState::try_from_slice(value.as_ref())?;
             // Mark loaded node last seen to now, to avoid deleting them as soon as they are loaded.
-            peer_state.last_seen = now;
-            peer_state.status = match peer_state.status {
-                banned_status @ KnownPeerStatus::Banned(_, _) => banned_status,
-                _ => KnownPeerStatus::NotConnected,
+            let peer_state = KnownPeerState {
+                peer_info: peer_state.peer_info,
+                first_seen: peer_state.first_seen,
+                last_seen: now,
+                status: match peer_state.status {
+                    banned_status @ KnownPeerStatus::Banned(_, _) => banned_status,
+                    _ => KnownPeerStatus::NotConnected,
+                },
             };
 
             match peer_states.entry(peer_id) {
