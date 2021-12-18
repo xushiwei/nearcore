@@ -1,6 +1,7 @@
 mod cli;
 
 use self::cli::NeardCmd;
+use clap::crate_version;
 use git_version::git_version;
 use near_performance_metrics;
 use near_primitives::version::{Version, DB_VERSION, PROTOCOL_VERSION};
@@ -12,12 +13,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 pub fn get_version() -> String {
-    "trunk".to_string()
-    // use clap::crate_version doesn't exist anymore
-    // match crate_version!() {
-    //     "0.0.0" => "trunk".to_string(),
-    //     _ => crate_version!().to_string(),
-    // }
+    match crate_version!() {
+        "0.0.0" => "trunk".to_string(),
+        _ => crate_version!().to_string(),
+    }
 }
 
 static NEARD_VERSION: Lazy<Version> = Lazy::new(|| Version {
