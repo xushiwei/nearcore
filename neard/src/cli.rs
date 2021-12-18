@@ -403,7 +403,6 @@ mod tests {
     #[test]
     fn equal_no_value_syntax() {
         assert!(NeardCmd::try_parse_from(&[
-            "test",
             "init",
             // * This line currently fails to be parsed (= without a value)
             "--chain-id=",
