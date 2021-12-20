@@ -12,7 +12,6 @@ use std::collections::hash_map::{Entry, Iter};
 use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use tracing::{debug, error};
 
 /// Level of trust we have about a new (PeerId, Addr) pair.
@@ -43,7 +42,7 @@ impl VerifiedPeer {
 
 /// Known peers store, maintaining cache of known peers and connection to storage to save/load them.
 pub struct PeerStore {
-    store: Arc<Store>,
+    store: Store,
     peer_states: HashMap<PeerId, KnownPeerState>,
     // This is a reverse index, from physical address to peer_id
     // It can happens that some peers don't have known address, so
@@ -53,7 +52,7 @@ pub struct PeerStore {
 
 impl PeerStore {
     pub(crate) fn new(
-        store: Arc<Store>,
+        store: Store,
         boot_nodes: &[PeerInfo],
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let mut peer_states = HashMap::default();
@@ -157,7 +156,7 @@ impl PeerStore {
     }
 
     fn save_to_db(
-        store: &Arc<Store>,
+        store: &Store,
         peer_id: &[u8],
         peer_state: &KnownPeerState,
     ) -> Result<(), Box<dyn Error>> {
@@ -370,7 +369,7 @@ impl PeerStore {
 }
 
 /// Public method used to iterate through all peers stored in the database.
-pub fn iter_peers_from_store<F>(store: Arc<Store>, f: F)
+pub fn iter_peers_from_store<F>(store: Store, f: F)
 where
     F: Fn((&PeerId, &KnownPeerState)),
 {

@@ -10,7 +10,6 @@ use near_primitives::time::Clock;
 use near_store::test_utils::create_test_store;
 use near_store::{ColComponentEdges, ColPeerComponent, Store};
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use std::time::Instant;
 
 #[derive(Eq, PartialEq, Hash)]
@@ -25,7 +24,7 @@ impl EdgeDescription {
 
 struct RoutingTableTest {
     routing_table: RoutingTableActor,
-    store: Arc<Store>,
+    store: Store,
     peers: Vec<PeerId>,
     rev_peers: HashMap<PeerId, usize>,
     times: Vec<Instant>,

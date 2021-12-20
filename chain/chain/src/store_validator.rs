@@ -76,7 +76,7 @@ pub struct StoreValidator {
     me: Option<AccountId>,
     config: GenesisConfig,
     runtime_adapter: Arc<dyn RuntimeAdapter>,
-    store: Arc<Store>,
+    store: Store,
     inner: StoreValidatorCache,
     timeout: Option<u64>,
     start_time: Instant,
@@ -90,7 +90,7 @@ impl StoreValidator {
         me: Option<AccountId>,
         config: GenesisConfig,
         runtime_adapter: Arc<dyn RuntimeAdapter>,
-        store: Arc<Store>,
+        store: Store,
     ) -> Self {
         StoreValidator {
             me,

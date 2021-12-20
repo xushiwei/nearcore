@@ -1092,7 +1092,7 @@ pub fn setup_client_with_runtime(
 }
 
 pub fn setup_client(
-    store: Arc<Store>,
+    store: Store,
     validators: Vec<Vec<AccountId>>,
     validator_groups: u64,
     num_shards: NumShards,

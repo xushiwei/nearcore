@@ -4090,7 +4090,7 @@ mod contract_precompilation_tests {
     #[test]
     fn test_sync_and_call_cached_contract() {
         let num_clients = 2;
-        let stores: Vec<Arc<Store>> = (0..num_clients).map(|_| create_test_store()).collect();
+        let stores: Vec<Store> = (0..num_clients).map(|_| create_test_store()).collect();
         let mut genesis =
             Genesis::test(vec!["test0".parse().unwrap(), "test1".parse().unwrap()], 1);
         genesis.config.epoch_length = EPOCH_LENGTH;
@@ -4193,7 +4193,7 @@ mod contract_precompilation_tests {
     #[test]
     fn test_two_deployments() {
         let num_clients = 2;
-        let stores: Vec<Arc<Store>> = (0..num_clients).map(|_| create_test_store()).collect();
+        let stores: Vec<Store> = (0..num_clients).map(|_| create_test_store()).collect();
         let mut genesis =
             Genesis::test(vec!["test0".parse().unwrap(), "test1".parse().unwrap()], 1);
         genesis.config.epoch_length = EPOCH_LENGTH;
@@ -4276,7 +4276,7 @@ mod contract_precompilation_tests {
     #[test]
     fn test_sync_after_delete_account() {
         let num_clients = 3;
-        let stores: Vec<Arc<Store>> = (0..num_clients).map(|_| create_test_store()).collect();
+        let stores: Vec<Store> = (0..num_clients).map(|_| create_test_store()).collect();
         let mut genesis = Genesis::test(
             vec!["test0".parse().unwrap(), "test1".parse().unwrap(), "test2".parse().unwrap()],
             1,
