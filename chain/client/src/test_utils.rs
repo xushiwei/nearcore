@@ -1513,7 +1513,7 @@ impl TestEnv {
     /// this `TestEnv` was created with custom runtime adapters that
     /// customisation will be lost.
     pub fn restart(&mut self, idx: usize) {
-        let store = self.clients[idx].chain.store().owned_store();
+        let store = self.clients[idx].chain.store().store().clone();
         let account_id = self.get_client_id(idx).clone();
         let rng_seed = match self.seeds.get(&account_id) {
             Some(seed) => seed.clone(),

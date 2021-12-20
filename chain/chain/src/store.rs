@@ -389,8 +389,8 @@ impl ChainStore {
         }
     }
 
-    pub fn owned_store(&self) -> Store {
-        self.store.clone()
+    pub fn owned_store(&self) -> &Store {
+        &self.store
     }
 
     pub fn store_update(&mut self) -> ChainStoreUpdate<'_> {
@@ -3459,7 +3459,7 @@ mod tests {
                 None,
                 genesis.clone(),
                 chain.runtime_adapter.clone(),
-                chain.store().owned_store(),
+                chain.store().store().clone(),
             );
             store_validator.validate();
             println!("errors = {:?}", store_validator.errors);

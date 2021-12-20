@@ -1327,7 +1327,7 @@ fn test_bad_chunk_mask() {
             create_chunk_on_height(&mut clients[chunk_producer], height);
         for client in clients.iter_mut() {
             let mut chain_store =
-                ChainStore::new(client.chain.store().owned_store(), chain_genesis.height);
+                ChainStore::new(client.chain.store().store().clone(), chain_genesis.height);
             client
                 .shards_mgr
                 .distribute_encoded_chunk(
@@ -2194,7 +2194,7 @@ fn test_validate_chunk_extra() {
 
     // Process the previously unavailable chunk. This causes two blocks to be accepted.
     let mut chain_store =
-        ChainStore::new(env.clients[0].chain.store().owned_store(), genesis_height);
+        ChainStore::new(env.clients[0].chain.store().store().clone(), genesis_height);
     let chunk_header = encoded_chunk.cloned_header();
     env.clients[0]
         .shards_mgr
@@ -2798,7 +2798,7 @@ fn test_epoch_protocol_version_change() {
 
         for j in 0..2 {
             let mut chain_store =
-                ChainStore::new(env.clients[j].chain.store().owned_store(), genesis_height);
+                ChainStore::new(env.clients[j].chain.store().store().clone(), genesis_height);
             env.clients[j]
                 .shards_mgr
                 .distribute_encoded_chunk(
@@ -3607,7 +3607,7 @@ mod access_key_nonce_range_tests {
         let (encoded_shard_chunk, merkle_path, receipts, block) =
             create_chunk_with_transactions(&mut env.clients[0], vec![tx]);
         let mut chain_store = ChainStore::new(
-            env.clients[0].chain.store().owned_store(),
+            env.clients[0].chain.store().store().clone(),
             genesis_block.header().height(),
         );
         env.clients[0]
