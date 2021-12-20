@@ -30,10 +30,11 @@ use crate::db::refcount::encode_value_with_rc;
 use crate::db::{
     DBOp, DBTransaction, Database, RocksDB, GENESIS_JSON_HASH_KEY, GENESIS_STATE_ROOTS_KEY,
 };
+pub use crate::trie::iterator::TrieIterator;
+pub use crate::trie::update::{TrieUpdate, TrieUpdateIterator, TrieUpdateValuePtr};
 pub use crate::trie::{
-    iterator::TrieIterator, split_state, update::TrieUpdate, update::TrieUpdateIterator,
-    update::TrieUpdateValuePtr, ApplyStatePartResult, KeyForStateChanges, PartialStorage,
-    ShardTries, Trie, TrieChanges, WrappedTrieChanges,
+    split_state, ApplyStatePartResult, KeyForStateChanges, PartialStorage, ShardTries, Trie,
+    TrieChanges, WrappedTrieChanges,
 };
 
 pub mod db;

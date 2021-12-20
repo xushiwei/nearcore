@@ -646,8 +646,7 @@ pub fn migrate_20_to_21(path: &Path) {
 }
 
 pub fn migrate_21_to_22(path: &Path) {
-    use near_primitives::epoch_manager::BlockInfoV1;
-    use near_primitives::epoch_manager::SlashState;
+    use near_primitives::epoch_manager::{BlockInfoV1, SlashState};
     use near_primitives::types::validator_stake::ValidatorStakeV1;
     use near_primitives::types::{BlockHeight, EpochId};
     use near_primitives::version::ProtocolVersion;
