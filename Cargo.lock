@@ -924,6 +924,7 @@ checksum = "9468f8012246b0836c6fd11725102b0844254985f2462b6c637d50040ef49df0"
 dependencies = [
  "atty",
  "bitflags",
+ "clap_derive",
  "indexmap",
  "lazy_static",
  "os_str_bytes",
@@ -2097,7 +2098,6 @@ version = "0.0.0"
 dependencies = [
  "actix",
  "clap 3.0.0-rc.7",
- "clap_derive",
  "near-indexer",
  "openssl-probe",
  "serde_json",
@@ -3318,7 +3318,6 @@ version = "0.0.0"
 dependencies = [
  "base64 0.13.0",
  "clap 3.0.0-rc.7",
- "clap_derive",
  "hex",
  "near-primitives",
  "near-primitives-core",
@@ -3392,7 +3391,6 @@ version = "0.0.0"
 dependencies = [
  "actix",
  "clap 3.0.0-rc.7",
- "clap_derive",
  "futures",
  "git-version",
  "near-performance-metrics",
@@ -4353,7 +4351,6 @@ name = "restored-receipts-verifier"
 version = "0.0.0"
 dependencies = [
  "clap 3.0.0-rc.7",
- "clap_derive",
  "near-chain",
  "near-jsonrpc",
  "near-primitives",
@@ -4417,7 +4414,6 @@ dependencies = [
  "cfg-if 1.0.0",
  "chrono",
  "clap 3.0.0-rc.7",
- "clap_derive",
  "csv",
  "genesis-populate",
  "glob",
@@ -4803,7 +4799,6 @@ dependencies = [
  "ansi_term 0.12.1",
  "borsh 0.9.1",
  "clap 3.0.0-rc.7",
- "clap_derive",
  "near-chain",
  "near-chain-configs",
  "near-client",
