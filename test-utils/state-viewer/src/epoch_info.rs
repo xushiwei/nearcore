@@ -11,7 +11,7 @@ use near_store::{DBCol, Store};
 use std::str::FromStr;
 use std::sync::Arc;
 
-#[derive(clap_derive::Parser, clap_derive::ArgEnum, Debug, Clone)]
+#[derive(clap::Parser, clap::ArgEnum, Debug, Clone)]
 pub(crate) enum EpochSelection {
     /// Current epoch.
     Current,

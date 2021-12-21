@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 static DEFAULT_HOME: Lazy<PathBuf> = Lazy::new(|| get_default_home());
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 #[clap(setting = AppSettings::SubcommandRequiredElseHelp)]
 pub struct StateViewerCmd {
     #[clap(flatten)]
@@ -23,7 +23,7 @@ pub struct StateViewerCmd {
     subcmd: StateViewerSubCommand,
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 #[clap(setting = AppSettings::SubcommandRequiredElseHelp)]
 pub struct StateViewerCmdNoOpts {
     #[clap(subcommand)]
@@ -41,7 +41,7 @@ impl StateViewerCmd {
     }
 }
 
-#[derive(clap_derive::Parser, Debug)]
+#[derive(clap::Parser, Debug)]
 struct StateViewerOpts {
     /// Directory for config and data.
     #[clap(long, parse(from_os_str), default_value_os = DEFAULT_HOME.as_os_str())]
@@ -54,7 +54,7 @@ impl StateViewerOpts {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub enum StateViewerSubCommand {
     #[clap(name = "peers")]
     Peers,
@@ -113,7 +113,7 @@ impl StateViewerSubCommand {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct DumpStateCmd {
     /// Optionally, can specify at which height to dump state.
     #[clap(long)]
@@ -137,7 +137,7 @@ impl DumpStateCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct ChainCmd {
     #[clap(long)]
     start_index: BlockHeight,
@@ -151,7 +151,7 @@ impl ChainCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct ReplayCmd {
     #[clap(long)]
     start_index: BlockHeight,
@@ -165,7 +165,7 @@ impl ReplayCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct ApplyRangeCmd {
     #[clap(long)]
     start_index: Option<BlockHeight>,
@@ -197,7 +197,7 @@ impl ApplyRangeCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct ApplyCmd {
     #[clap(long)]
     height: BlockHeight,
@@ -211,7 +211,7 @@ impl ApplyCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct ViewChainCmd {
     #[clap(long)]
     height: Option<BlockHeight>,
@@ -227,7 +227,7 @@ impl ViewChainCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct DumpCodeCmd {
     #[clap(long)]
     account_id: String,
@@ -241,7 +241,7 @@ impl DumpCodeCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub struct DumpAccountStorageCmd {
     #[clap(long)]
     account_id: String,
@@ -266,7 +266,7 @@ impl DumpAccountStorageCmd {
         );
     }
 }
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 #[clap(setting = AppSettings::SubcommandRequiredElseHelp)]
 pub struct EpochInfoCmd {
     #[clap(subcommand)]

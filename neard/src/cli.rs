@@ -15,7 +15,7 @@ use tracing::metadata::LevelFilter;
 use tracing_subscriber::EnvFilter;
 
 /// NEAR Protocol Node
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 #[clap(version = NEARD_VERSION_STRING.as_str())]
 #[clap(setting = AppSettings::SubcommandRequiredElseHelp)]
 pub(super) struct NeardCmd {
@@ -65,7 +65,7 @@ impl NeardCmd {
     }
 }
 
-#[derive(clap_derive::Parser, Debug)]
+#[derive(clap::Parser, Debug)]
 struct NeardOpts {
     /// Sets verbose logging for the given target, or for all targets
     /// if "debug" is given.
@@ -82,7 +82,7 @@ impl NeardOpts {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub(super) enum NeardSubCommand {
     /// Initializes NEAR configuration
     #[clap(name = "init")]
@@ -107,7 +107,7 @@ pub(super) enum NeardSubCommand {
     StateViewer(StateViewerCmdNoOpts),
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub(super) struct InitCmd {
     /// Download the verified NEAR genesis file automatically.
     #[clap(long)]
@@ -177,7 +177,7 @@ impl InitCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub(super) struct RunCmd {
     /// Keep old blocks in the storage (default false).
     #[clap(long)]
@@ -310,7 +310,7 @@ impl RunCmd {
     }
 }
 
-#[derive(clap_derive::Parser)]
+#[derive(clap::Parser)]
 pub(super) struct TestnetCmd {
     /// Number of non-validators to initialize the testnet with.
     #[clap(long = "n", default_value = "0")]
