@@ -98,7 +98,6 @@ impl Decoder for Codec {
 #[cfg(test)]
 mod test {
     use crate::peer::codec::{Codec, NETWORK_MESSAGE_MAX_SIZE_BYTES};
-    use crate::routing::network_protocol::PartialEdgeInfo;
     use crate::types::{
         Handshake, HandshakeFailureReason, HandshakeV2, PeerMessage, RoutingTableUpdate,
     };
@@ -107,7 +106,7 @@ mod test {
     use bytes::{BufMut, BytesMut};
     use near_crypto::{KeyType, PublicKey, SecretKey};
     use near_network_primitives::types::{
-        PeerChainInfo, PeerChainInfoV2, PeerIdOrHash, ReasonForBan, RoutedMessage,
+        PartialEdgeInfo, PeerChainInfo, PeerChainInfoV2, PeerIdOrHash, ReasonForBan, RoutedMessage,
         RoutedMessageBody,
     };
     use near_primitives::block::{Approval, ApprovalInner};

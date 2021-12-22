@@ -1,4 +1,4 @@
-/// `network_protocol.rs` contains types which are part of network protocol.
+/// `network_protoco` contains types which are part of network protocol.
 /// We need to maintain backward compatibility in network protocol.
 /// All changes to this file should be reviewed.
 ///
@@ -22,6 +22,8 @@ use std::fmt;
 use std::fmt::{Debug, Error, Formatter};
 use std::net::SocketAddr;
 use std::str::FromStr;
+
+pub(crate) mod edge;
 
 /// Peer information.
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
