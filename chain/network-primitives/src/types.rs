@@ -8,8 +8,7 @@
 ///
 /// NOTE:
 /// - We also export publicly types from `crate::network_protocol`
-use actix::dev::{MessageResponse, ResponseChannel};
-use actix::{Actor, Message};
+use actix::Message;
 use borsh::{BorshDeserialize, BorshSerialize};
 use chrono::DateTime;
 use near_crypto::{KeyType, PublicKey, SecretKey, Signature};
@@ -526,7 +525,7 @@ pub enum NetworkViewClientMessages {
     AnnounceAccount(Vec<(AnnounceAccount, Option<EpochId>)>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, actix::dev::MessageResponse)]
 pub enum NetworkViewClientResponses {
     /// Transaction execution outcome
     TxStatus(Box<FinalExecutionOutcomeView>),
@@ -559,18 +558,6 @@ pub enum NetworkViewClientResponses {
     NoResponse,
 }
 
-impl<A, M> MessageResponse<A, M> for NetworkViewClientResponses
-where
-    A: Actor,
-    M: Message<Result = NetworkViewClientResponses>,
-{
-    fn handle<R: ResponseChannel<M>>(self, _: &mut A::Context, tx: Option<R>) {
-        if let Some(tx) = tx {
-            tx.send(self)
-        }
-    }
-}
-
 impl Message for NetworkViewClientMessages {
     type Result = NetworkViewClientResponses;
 }
@@ -579,7 +566,7 @@ impl Message for NetworkViewClientMessages {
 pub struct QueryPeerStats {}
 
 /// Peer stats result
-#[derive(Debug)]
+#[derive(Debug, actix::dev::MessageResponse)]
 pub struct PeerStatsResult {
     /// Chain info.
     pub chain_info: PeerChainInfoV2,
@@ -591,18 +578,6 @@ pub struct PeerStatsResult {
     pub is_abusive: bool,
     /// Counts of incoming/outgoing messages from given peer.
     pub message_counts: (u64, u64),
-}
-
-impl<A, M> MessageResponse<A, M> for PeerStatsResult
-where
-    A: Actor,
-    M: Message<Result = PeerStatsResult>,
-{
-    fn handle<R: ResponseChannel<M>>(self, _: &mut A::Context, tx: Option<R>) {
-        if let Some(tx) = tx {
-            tx.send(self)
-        }
-    }
 }
 
 impl Message for QueryPeerStats {

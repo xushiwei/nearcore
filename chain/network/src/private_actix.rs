@@ -4,8 +4,8 @@ use crate::network_protocol::PeerMessage;
 use crate::network_protocol::{Edge, PartialEdgeInfo, SimpleEdge};
 use crate::peer::peer_actor::PeerActor;
 use crate::PeerInfo;
-use actix::dev::{MessageResponse, ResponseChannel};
-use actix::{Actor, Addr, Message};
+use actix::dev::MessageResponse;
+use actix::{Addr, Message};
 use conqueue::QueueSender;
 use near_network_primitives::types::{PeerChainInfoV2, PeerType};
 use near_primitives::network::PeerId;
@@ -80,21 +80,9 @@ impl Message for PeersRequest {
     type Result = PeerRequestResult;
 }
 
-#[derive(Debug)]
+#[derive(Debug, actix::dev::MessageResponse)]
 pub struct PeerRequestResult {
     pub peers: Vec<PeerInfo>,
-}
-
-impl<A, M> MessageResponse<A, M> for PeerRequestResult
-where
-    A: Actor,
-    M: Message<Result = PeerRequestResult>,
-{
-    fn handle<R: ResponseChannel<M>>(self, _: &mut A::Context, tx: Option<R>) {
-        if let Some(tx) = tx {
-            tx.send(self)
-        }
-    }
 }
 
 #[derive(Message)]
