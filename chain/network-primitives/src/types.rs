@@ -525,7 +525,7 @@ pub enum NetworkViewClientMessages {
     AnnounceAccount(Vec<(AnnounceAccount, Option<EpochId>)>),
 }
 
-#[derive(Debug, actix::dev::MessageResponse)]
+#[derive(Debug, actix::MessageResponse)]
 pub enum NetworkViewClientResponses {
     /// Transaction execution outcome
     TxStatus(Box<FinalExecutionOutcomeView>),
@@ -566,7 +566,7 @@ impl Message for NetworkViewClientMessages {
 pub struct QueryPeerStats {}
 
 /// Peer stats result
-#[derive(Debug, actix::dev::MessageResponse)]
+#[derive(Debug, actix::MessageResponse)]
 pub struct PeerStatsResult {
     /// Chain info.
     pub chain_info: PeerChainInfoV2,

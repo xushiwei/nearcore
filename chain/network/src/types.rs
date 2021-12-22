@@ -10,7 +10,6 @@ use crate::private_actix::{
 };
 use crate::routing::routing_table_view::RoutingTableInfo;
 use crate::PeerInfo;
-use actix::dev::MessageResponse;
 use actix::{MailboxError, Message, Recipient};
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -78,7 +77,7 @@ impl Message for PeerRequest {
     type Result = PeerResponse;
 }
 
-#[derive(MessageResponse, Debug)]
+#[derive(actix::MessageResponse, Debug)]
 pub enum PeerResponse {
     NoResponse,
     UpdatedEdge(PartialEdgeInfo),
@@ -143,7 +142,7 @@ impl Message for PeerManagerMessageRequest {
 }
 
 /// List of all replies to messages to PeerManager. See `PeerManagerMessageRequest` for more details.
-#[derive(MessageResponse, Debug)]
+#[derive(actix::MessageResponse, Debug)]
 pub enum PeerManagerMessageResponse {
     RoutedMessageFrom(bool),
     NetworkResponses(NetworkResponses),
@@ -352,7 +351,7 @@ pub struct FullPeerInfo {
     pub partial_edge_info: PartialEdgeInfo,
 }
 
-#[derive(Debug, actix::dev::MessageResponse)]
+#[derive(Debug, actix::MessageResponse)]
 pub struct NetworkInfo {
     pub connected_peers: Vec<FullPeerInfo>,
     pub num_connected_peers: usize,
@@ -365,7 +364,7 @@ pub struct NetworkInfo {
     pub peer_counter: usize,
 }
 
-#[derive(Debug, actix::dev::MessageResponse)]
+#[derive(Debug, actix::MessageResponse)]
 pub enum NetworkResponses {
     NoResponse,
     RoutingTableInfo(RoutingTableInfo),
@@ -430,7 +429,7 @@ impl Message for NetworkClientMessages {
 }
 
 // TODO(#1313): Use Box
-#[derive(Eq, PartialEq, Debug, actix::dev::MessageResponse)]
+#[derive(Eq, PartialEq, Debug, actix::MessageResponse)]
 #[allow(clippy::large_enum_variant)]
 pub enum NetworkClientResponses {
     /// Adv controls.
