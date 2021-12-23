@@ -16,7 +16,7 @@ use tracing::trace;
 const INITIAL_CAPACITY: usize = 8 * 1024;
 
 pin_project! {
-    pub struct ThrottledFrameRead<T, D> {
+    pub struct ThrottledFramedRead<T, D> {
         #[pin]
         inner: FramedImpl<T, D, ReadFrame>,
     }
@@ -30,7 +30,6 @@ pin_project! {
         pub(crate) state: State,
         pub(crate) codec: U,
         pub(crate) throttle_controller: ThrottleController,
-        pub(crate) semaphore: PollSemaphore,
     }
 }
 
@@ -129,7 +128,7 @@ impl ThrottleController {
         }
     }
 
-    /// Check whenever `ThrottleFrameRead` is allowed to read from socket.
+    /// Check whenever `ThrottleFramedRead` is allowed to read from socket.
     /// That is, we didn't exceed limits yet.
     fn is_ready(&self) -> bool {
         (self.num_messages_in_progress.load(Ordering::SeqCst) < self.max_num_messages_in_progress)
@@ -182,7 +181,7 @@ impl ThrottleController {
     }
 }
 
-impl<T, D> ThrottledFrameRead<T, D>
+impl<T, D> ThrottledFramedRead<T, D>
 where
     T: AsyncRead,
     D: Decoder,
@@ -192,21 +191,19 @@ where
         inner: T,
         decoder: D,
         throttle_controller: ThrottleController,
-        semaphore: PollSemaphore,
-    ) -> ThrottledFrameRead<T, D> {
-        ThrottledFrameRead {
+    ) -> ThrottledFramedRead<T, D> {
+        ThrottledFramedRead {
             inner: FramedImpl {
                 inner,
                 codec: decoder,
                 state: Default::default(),
                 throttle_controller,
-                semaphore,
             },
         }
     }
 }
 
-impl<T, D> ThrottledFrameRead<T, D> {
+impl<T, D> ThrottledFramedRead<T, D> {
     pub fn get_ref(&self) -> &T {
         &self.inner.inner
     }
@@ -225,7 +222,7 @@ impl<T, D> ThrottledFrameRead<T, D> {
 }
 
 // This impl just defers to the underlying FramedImpl
-impl<T, D> Stream for ThrottledFrameRead<T, D>
+impl<T, D> Stream for ThrottledFramedRead<T, D>
 where
     T: AsyncRead,
     D: Decoder,
@@ -264,7 +261,7 @@ where
             while !pinned.throttle_controller.is_ready() {
                 // This will cause us to subscribe to notifier when something gets pushed to
                 // `pinned.receiver`. If there is an element in the queue, we will check again.
-                ready!(pinned.semaphore.poll_acquire(cx));
+                ready!(pinned.throttle_controller.semaphore.poll_acquire(cx));
             }
 
             // Repeatedly call `decode` or `decode_eof` as long as it is
@@ -310,7 +307,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{ThrottleController, ThrottledFrameRead};
+    use crate::{ThrottleController, ThrottledFramedRead};
     use bytes::{Buf, BytesMut};
     use futures_core::Stream;
     use std::error::Error;
@@ -499,9 +496,7 @@ mod tests {
         server_tcp_stream.write_all(b"hello world!").await?;
 
         let (read, _write) = tokio::io::split(client_stream);
-        let semaphore = PollSemaphore::new(Arc::new(Semaphore::new(0)));
-        let mut read =
-            ThrottledFrameRead::new(read, Codec::default(), rate_limiter.clone(), semaphore);
+        let mut read = ThrottledFramedRead::new(read, Codec::default(), rate_limiter.clone());
 
         let waker = noop_waker();
         let mut context = Context::from_waker(&waker);

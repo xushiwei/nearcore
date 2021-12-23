@@ -42,7 +42,7 @@ use near_primitives::types::{AccountId, ProtocolVersion};
 use near_primitives::utils::from_timestamp;
 use near_rate_limiter::{
     ActixMessageResponse, ActixMessageWrapper, ThrottleController, ThrottleToken,
-    ThrottledFrameRead,
+    ThrottledFramedRead,
 };
 use near_store::Store;
 use rand::seq::{IteratorRandom, SliceRandom};
@@ -896,7 +896,7 @@ impl PeerManagerActor {
                 MAX_MESSAGES_TOTAL_SIZE,
             );
             PeerActor::add_stream(
-                ThrottledFrameRead::new(read, Codec::default(), rate_limiter.clone(), semaphore)
+                ThrottledFramedRead::new(read, Codec::default(), rate_limiter.clone())
                     .take_while(|x| match x {
                         Ok(_) => future::ready(true),
                         Err(e) => {
