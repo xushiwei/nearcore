@@ -890,11 +890,8 @@ impl PeerManagerActor {
 
             // TODO: check if peer is banned or known based on IP address and port.
             let semaphore = PollSemaphore::new(Arc::new(Semaphore::new(0)));
-            let rate_limiter = ThrottleController::new(
-                semaphore.clone(),
-                MAX_MESSAGES_COUNT,
-                MAX_MESSAGES_TOTAL_SIZE,
-            );
+            let rate_limiter =
+                ThrottleController::new(semaphore, MAX_MESSAGES_COUNT, MAX_MESSAGES_TOTAL_SIZE);
             PeerActor::add_stream(
                 ThrottledFramedRead::new(read, Codec::default(), rate_limiter.clone())
                     .take_while(|x| match x {
