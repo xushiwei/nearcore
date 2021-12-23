@@ -17,7 +17,7 @@ use tracing::trace;
 const INITIAL_CAPACITY: usize = 8 * 1024;
 
 pin_project! {
-    pub struct ThrottledFramedRead<T, D> {
+    pub struct ThrottleFramedRead<T, D> {
         #[pin]
         inner: FramedImpl<T, D, ReadFrame>,
     }
@@ -52,8 +52,8 @@ pub struct ThrottleController {
     bandwidth_read: Arc<AtomicUsize>,
     /// Stores count of messages seen.
     msg_seen: Arc<AtomicUsize>,
-    /// We have an unbounded queue of messages, that we use to wake `ThrottledRateLimiter`.
-    /// This is the sender part, which is used to notify `ThrottledRateLimiter` to try to
+    /// We have an unbounded queue of messages, that we use to wake `ThrottleRateLimiter`.
+    /// This is the sender part, which is used to notify `ThrottleRateLimiter` to try to
     /// read again from queue.
     /// max size of num_messages_in_progress
     max_num_messages_in_progress: usize,
@@ -146,16 +146,16 @@ impl ThrottleController {
     }
 
     /// Un-tracks the message and decreases limits by size of the message and notifies
-    /// `ThrottledFramedReader` to try to read again
+    /// `ThrottleFramedReader` to try to read again
     pub fn remove_msg(&mut self, msg_size: usize) {
         self.num_messages_in_progress.fetch_sub(1, Ordering::SeqCst);
         if msg_size != 0 {
             self.total_sizeof_messages_in_progress.fetch_sub(msg_size, Ordering::SeqCst);
         }
 
-        // If `ThrottledFramedReader` is not scheduled to read.
+        // If `ThrottleFramedReader` is not scheduled to read.
         if self.semaphore.available_permits() == 0 {
-            // Notify throttled framed reader to start readin
+            // Notify `ThrottleFramedRead` to start reading.
             self.semaphore.add_permits(1);
         }
     }
@@ -181,7 +181,7 @@ impl ThrottleController {
     }
 }
 
-impl<T, D> ThrottledFramedRead<T, D>
+impl<T, D> ThrottleFramedRead<T, D>
 where
     T: AsyncRead,
     D: Decoder,
@@ -191,8 +191,8 @@ where
         inner: T,
         decoder: D,
         throttle_controller: ThrottleController,
-    ) -> ThrottledFramedRead<T, D> {
-        ThrottledFramedRead {
+    ) -> ThrottleFramedRead<T, D> {
+        ThrottleFramedRead {
             inner: FramedImpl {
                 inner,
                 codec: decoder,
@@ -203,7 +203,7 @@ where
     }
 }
 
-impl<T, D> ThrottledFramedRead<T, D> {
+impl<T, D> ThrottleFramedRead<T, D> {
     pub fn get_ref(&self) -> &T {
         &self.inner.inner
     }
@@ -222,7 +222,7 @@ impl<T, D> ThrottledFramedRead<T, D> {
 }
 
 // This impl just defers to the underlying FramedImpl
-impl<T, D> Stream for ThrottledFramedRead<T, D>
+impl<T, D> Stream for ThrottleFramedRead<T, D>
 where
     T: AsyncRead,
     D: Decoder,
@@ -307,7 +307,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{ThrottleController, ThrottledFramedRead};
+    use crate::{ThrottleController, ThrottleFramedRead};
     use bytes::{Buf, BytesMut};
     use futures_core::Stream;
     use std::error::Error;
@@ -471,7 +471,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_throttled_framed_read() -> Result<(), Box<dyn Error>> {
+    async fn test_throttle_framed_read() -> Result<(), Box<dyn Error>> {
         let rate_limiter = ThrottleController::new(1, usize::MAX);
 
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("TcpListener::bind");
@@ -485,7 +485,7 @@ mod tests {
         server_tcp_stream.write_all(b"hello world!").await?;
 
         let (read, _write) = tokio::io::split(client_stream);
-        let mut read = ThrottledFramedRead::new(read, Codec::default(), rate_limiter.clone());
+        let mut read = ThrottleFramedRead::new(read, Codec::default(), rate_limiter.clone());
 
         let waker = noop_waker();
         let mut context = Context::from_waker(&waker);
