@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::AsyncRead;
+use tokio::sync::Semaphore;
 use tokio_util::codec::Decoder;
 use tokio_util::io::poll_read_buf;
 use tokio_util::sync::PollSemaphore;
@@ -112,7 +113,6 @@ impl ThrottleController {
     /// - `max_total_sizeof_messages_in_progress` - maximum total size of messages count
     ///        before throttling starts.
     pub fn new(
-        semaphore: PollSemaphore,
         max_num_messages_in_progress: usize,
         max_total_sizeof_messages_in_progress: usize,
     ) -> Self {
@@ -124,7 +124,7 @@ impl ThrottleController {
             msg_seen: Default::default(),
             max_num_messages_in_progress,
             max_total_sizeof_messages_in_progress,
-            semaphore,
+            semaphore: PollSemaphore::new(Arc::new(Semaphore::new(0))),
         }
     }
 
@@ -314,23 +314,18 @@ mod tests {
     use std::pin::Pin;
     use std::ptr::null;
     use std::sync::atomic::Ordering::SeqCst;
-    use std::sync::Arc;
     use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
     use std::time::Duration;
     use tokio::io::AsyncWriteExt;
     use tokio::net::{TcpListener, TcpStream};
-    use tokio::sync::Semaphore;
     use tokio::time::Instant;
     use tokio_stream::StreamExt;
     use tokio_util::codec::Decoder;
-    use tokio_util::sync::PollSemaphore;
 
     #[tokio::test]
     async fn test_rate_limiter_helper_by_count() {
-        let semaphore = PollSemaphore::new(Arc::new(Semaphore::new(0)));
         let max_messages_count = 20;
-        let mut throttle_controller =
-            ThrottleController::new(semaphore.clone(), max_messages_count, 2000000);
+        let mut throttle_controller = ThrottleController::new(max_messages_count, 2000000);
         for _ in 0..max_messages_count {
             assert!(throttle_controller.is_ready());
             throttle_controller.add_msg(100);
@@ -365,15 +360,13 @@ mod tests {
         assert_eq!(throttle_controller.num_messages_in_progress.load(SeqCst), 0);
         assert_eq!(throttle_controller.total_sizeof_messages_in_progress.load(SeqCst), 0);
 
-        assert_eq!(semaphore.available_permits(), 1);
+        assert_eq!(throttle_controller.semaphore.available_permits(), 1);
     }
 
     #[tokio::test]
     async fn test_rate_limiter_helper_by_size() {
         let max_messages_total_size = 500_000_000;
-        let semaphore = PollSemaphore::new(Arc::new(Semaphore::new(0)));
-        let mut throttle_controller =
-            ThrottleController::new(semaphore.clone(), 1000, max_messages_total_size);
+        let mut throttle_controller = ThrottleController::new(1000, max_messages_total_size);
 
         for _ in 0..8 {
             assert!(throttle_controller.is_ready());
@@ -406,15 +399,13 @@ mod tests {
         assert_eq!(throttle_controller.num_messages_in_progress.load(SeqCst), 0);
         assert_eq!(throttle_controller.total_sizeof_messages_in_progress.load(SeqCst), 0);
 
-        assert_eq!(semaphore.available_permits(), 1);
+        assert_eq!(throttle_controller.semaphore.available_permits(), 1);
     }
 
     #[test]
     fn test_throttle_controller() {
         let max_messages_total_size = 500_000_000;
-        let semaphore = PollSemaphore::new(Arc::new(Semaphore::new(0)));
-        let mut throttle_controller =
-            ThrottleController::new(semaphore, 1000, max_messages_total_size);
+        let mut throttle_controller = ThrottleController::new(1000, max_messages_total_size);
 
         assert_eq!(throttle_controller.consume_msg_seen(), 0);
         throttle_controller.report_msg_seen();
@@ -433,8 +424,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_max_messages_in_progress() {
-        let semaphore = PollSemaphore::new(Arc::new(Semaphore::new(0)));
-        let mut throttle_controller = ThrottleController::new(semaphore, 1000, usize::MAX);
+        let mut throttle_controller = ThrottleController::new(1000, usize::MAX);
 
         assert_eq!(throttle_controller.consume_max_messages_in_progress(), 0);
         throttle_controller.add_msg(0);
@@ -482,8 +472,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_throttled_framed_read() -> Result<(), Box<dyn Error>> {
-        let semaphore = PollSemaphore::new(Arc::new(Semaphore::new(0)));
-        let rate_limiter = ThrottleController::new(semaphore, 1, usize::MAX);
+        let rate_limiter = ThrottleController::new(1, usize::MAX);
 
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("TcpListener::bind");
         let addr = listener.local_addr().expect("addr");
