@@ -1179,7 +1179,7 @@ impl PeerManagerActor {
         //   - Remove some based on condition A
         //   - Remove some based on condition B
         //   - Remove some based on condition C
-        //   - Keep removing until we remove at last `config.safe_size`
+        //   - Keep removing until we remove at last `config.safe_size` - step D
         //   - Disconnect one peer out of the remaining list
         let mut safe_set = HashSet::new();
 
