@@ -1174,6 +1174,13 @@ impl PeerManagerActor {
         );
 
         // Build safe set
+        // TODO(PIOTR): Remove `safe_set`. And simplify this code further.
+        //   - The logic of this function is to take all connections.
+        //   - Remove some based on condition A
+        //   - Remove some based on condition B
+        //   - Remove some based on condition C
+        //   - Keep removing until we remove at last `config.safe_size`
+        //   - Disconnect one peer out of the remaining list
         let mut safe_set = HashSet::new();
 
         if self.num_connected_outgoing_peers() + self.outgoing_peers.len()
