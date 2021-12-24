@@ -2986,6 +2986,7 @@ dependencies = [
  "deepsize",
  "delay-detector",
  "futures",
+ "itertools",
  "lru",
  "near-crypto",
  "near-metrics",

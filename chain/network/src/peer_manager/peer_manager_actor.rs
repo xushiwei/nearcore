@@ -25,6 +25,7 @@ use actix::{
 };
 use futures::task::Poll;
 use futures::{future, Stream, StreamExt};
+use itertools::Itertools;
 use near_network_primitives::types::{
     AccountOrPeerIdOrHash, Ban, BlockedPorts, InboundTcpConnect, KnownPeerState, KnownPeerStatus,
     KnownProducer, NetworkConfig, NetworkViewClientMessages, NetworkViewClientResponses,
@@ -45,11 +46,12 @@ use near_rate_limiter::{
     ThrottledFrameRead,
 };
 use near_store::Store;
-use rand::seq::{IteratorRandom, SliceRandom};
+use rand::seq::IteratorRandom;
 use rand::thread_rng;
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
+use std::ops::Not;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -1177,71 +1179,58 @@ impl PeerManagerActor {
         if self.num_connected_outgoing_peers() + self.outgoing_peers.len()
             <= self.config.minimum_outbound_peers as usize
         {
-            for (peer, active) in self.connected_peers.iter() {
-                if active.peer_type == PeerType::Outbound {
-                    safe_set.insert(peer.clone());
-                }
-            }
+            safe_set.extend(
+                self.connected_peers
+                    .values()
+                    .filter(|connected| connected.peer_type == PeerType::Outbound)
+                    .map(|connected| &connected.full_peer_info.peer_info.id),
+            );
         }
 
         if self.config.archive
             && self.num_archival_peers()
                 <= self.config.archival_peer_connections_lower_bound as usize
         {
-            for (peer, active) in self.connected_peers.iter() {
-                if active.full_peer_info.chain_info.archival {
-                    safe_set.insert(peer.clone());
-                }
-            }
+            safe_set.extend(
+                self.connected_peers
+                    .values()
+                    .filter(|connected| connected.full_peer_info.chain_info.archival)
+                    .map(|connected| &connected.full_peer_info.peer_info.id),
+            );
         }
 
-        // Find all recent connections
-        let mut recent_connections = self
-            .connected_peers
-            .iter()
-            .filter_map(|(peer_id, active)| {
-                if active.last_time_received_message.elapsed() < self.config.peer_recent_time_window
-                {
-                    Some((peer_id.clone(), active.connection_established_time))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
-        // Sort by established time
-        recent_connections.sort_by(|(_, established_time_a), (_, established_time_b)| {
-            established_time_a.cmp(established_time_b)
-        });
-
-        // Take remaining peers
-        for (peer_id, _) in recent_connections
-            .into_iter()
-            .take((self.config.safe_set_size as usize).saturating_sub(safe_set.len()))
-        {
-            safe_set.insert(peer_id.clone());
-        }
+        safe_set.extend(
+            self.connected_peers
+                .values()
+                // TODO(PIOTR): After rewriting code I noticed that we don't filter peers already in safe set.
+                // For example:
+                //      - safe_set contains 20 elements
+                //      - safe_set.len() is equal to 30
+                //      - we will try to add (30 - 20) = 10 peers to safe_set
+                //      - but, some of those 10 peers may be duplicates, so the resulting set may be less than 30
+                // TODO: add `.filter(|(peer_id, _)|safe_set.contains(peer_id).not())`
+                .filter(|connected| {
+                    connected.last_time_received_message.elapsed()
+                        < self.config.peer_recent_time_window
+                })
+                .sorted_by(|left, right| {
+                    left.connection_established_time.cmp(&right.connection_established_time)
+                })
+                // Take the oldest peers
+                .take((self.config.safe_set_size as usize).saturating_sub(safe_set.len()))
+                .map(|connected| &connected.full_peer_info.peer_info.id),
+        );
 
         // Build valid candidate list to choose the peer to be removed. All peers outside the safe set.
-        let candidates = self
+        let candidate = self
             .connected_peers
-            .keys()
-            .filter_map(
-                |peer_id| {
-                    if safe_set.contains(peer_id) {
-                        None
-                    } else {
-                        Some(peer_id.clone())
-                    }
-                },
-            )
-            .collect::<Vec<_>>();
+            .iter()
+            .filter(|(peer_id, _)| safe_set.contains(peer_id).not())
+            .choose(&mut rand::thread_rng());
 
-        if let Some(peer_id) = candidates.choose(&mut rand::thread_rng()) {
-            if let Some(active_peer) = self.connected_peers.get(peer_id) {
-                debug!(target: "network", ?peer_id, "Stop active connection");
-                active_peer.addr.do_send(PeerManagerRequest::UnregisterPeer);
-            }
+        if let Some((peer_id, connected_peer)) = candidate {
+            debug!(target: "network", ?peer_id, "Stop active connection");
+            connected_peer.addr.do_send(PeerManagerRequest::UnregisterPeer);
         }
     }
 
