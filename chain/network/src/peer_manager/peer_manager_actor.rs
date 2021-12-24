@@ -1212,7 +1212,7 @@ impl PeerManagerActor {
                 // TODO(PIOTR): After rewriting code I noticed that we don't filter peers already in safe set.
                 // For example:
                 //      - safe_set contains 20 elements
-                //      - safe_set.len() is equal to 30
+                //      - config.safe_set_size is equal to 30
                 //      - we will try to add (30 - 20) = 10 peers to safe_set
                 //      - but, some of those 10 peers may be duplicates, so the resulting set may be less than 30
                 // TODO: add `.filter(|(peer_id, _)|safe_set.contains(peer_id).not())`
