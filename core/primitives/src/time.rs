@@ -24,14 +24,16 @@
 ///     some_production_function();
 /// }
 /// ```
+use borsh::{BorshDeserialize, BorshSerialize};
 use chrono;
 use chrono::DateTime;
 pub use chrono::Utc;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::default::Default;
+use std::ops::{Add, Sub};
 pub use std::time::{Duration, Instant};
-pub use time_struct::Time;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Default)]
 struct MockClockPerState {
@@ -179,9 +181,85 @@ impl Clock {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Time {
+    system_time: SystemTime,
+}
+
+impl BorshSerialize for Time {
+    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
+        let nanos = self.duration_since(Time::from(UNIX_EPOCH)).as_nanos() as u64;
+        BorshSerialize::serialize(&nanos, writer)
+    }
+}
+
+impl BorshDeserialize for Time {
+    fn deserialize(buf: &mut &[u8]) -> Result<Self, std::io::Error> {
+        let nanos: u64 = borsh::BorshDeserialize::deserialize(buf)?;
+
+        Ok(Time::UNIX_EPOCH + Duration::from_nanos(nanos))
+    }
+}
+
+impl From<SystemTime> for Time {
+    fn from(system_time: SystemTime) -> Self {
+        Self { system_time }
+    }
+}
+
+impl From<DateTime<Utc>> for Time {
+    fn from(utc: DateTime<Utc>) -> Self {
+        Self::UNIX_EPOCH + Duration::from_nanos(utc.timestamp_nanos() as u64)
+    }
+}
+
+impl Time {
+    pub const UNIX_EPOCH: Time = Time { system_time: SystemTime::UNIX_EPOCH };
+
+    pub fn now() -> Self {
+        Self::UNIX_EPOCH + Duration::from_nanos(Clock::utc().timestamp_nanos() as u64)
+    }
+
+    /// Computes saturating duration since `rhs`.
+    /// A value of `0` will returned in case given timestamp is greater than self.
+    pub fn duration_since(&self, rhs: Self) -> Duration {
+        self.system_time.duration_since(rhs.system_time).unwrap_or_default()
+    }
+
+    /// Time in `std::Duration` since `self`.
+    pub fn elapsed(&self) -> Duration {
+        Self::now().duration_since(*self)
+    }
+}
+
+impl Add<Duration> for Time {
+    type Output = Self;
+
+    fn add(self, other: Duration) -> Self {
+        Self { system_time: self.system_time + other }
+    }
+}
+
+impl Sub for Time {
+    type Output = Duration;
+
+    fn sub(self, other: Self) -> Self::Output {
+        self.system_time.duration_since(other.system_time).unwrap_or_default()
+    }
+}
+
+impl Sub<Duration> for Time {
+    type Output = Time;
+
+    fn sub(self, other: Duration) -> Self::Output {
+        Time::from(self.system_time.checked_sub(other).unwrap_or(UNIX_EPOCH))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use borsh::{BorshDeserialize, BorshSerialize};
     use std::ops::Add;
     use std::thread;
     use std::thread::sleep;
@@ -285,118 +363,29 @@ mod tests {
             }
         });
     }
-}
 
-mod time_struct {
-    use crate::time::{Clock, Duration, Utc};
-    use borsh::{BorshDeserialize, BorshSerialize};
-    use chrono::DateTime;
-    use std::ops::{Add, Sub};
-    use std::time::{SystemTime, UNIX_EPOCH};
+    #[test]
+    fn test_operator() {
+        let now_st = SystemTime::now();
 
-    #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-    pub struct Time {
-        system_time: SystemTime,
+        let now_nc: Time = now_st.into();
+
+        let t_nc = now_nc + Duration::from_nanos(123456);
+        let t_st = now_st + Duration::from_nanos(123456);
+
+        assert_eq!(t_nc.system_time, t_st);
     }
 
-    impl BorshSerialize for Time {
-        fn serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
-            let nanos = self.duration_since(Time::from(UNIX_EPOCH)).as_nanos() as u64;
-            BorshSerialize::serialize(&nanos, writer)
-        }
-    }
+    #[test]
+    fn test_borsh() {
+        let now_nc = Time::now();
 
-    impl BorshDeserialize for Time {
-        fn deserialize(buf: &mut &[u8]) -> Result<Self, std::io::Error> {
-            let nanos: u64 = borsh::BorshDeserialize::deserialize(buf)?;
+        let mut v = Vec::new();
+        BorshSerialize::serialize(&now_nc, &mut v).unwrap();
 
-            Ok(Time::UNIX_EPOCH + Duration::from_nanos(nanos))
-        }
-    }
+        let v2: &mut &[u8] = &mut v.as_slice();
 
-    impl From<SystemTime> for Time {
-        fn from(system_time: SystemTime) -> Self {
-            Self { system_time }
-        }
-    }
-
-    impl From<DateTime<Utc>> for Time {
-        fn from(utc: DateTime<Utc>) -> Self {
-            Self::UNIX_EPOCH + Duration::from_nanos(utc.timestamp_nanos() as u64)
-        }
-    }
-
-    impl Time {
-        pub const UNIX_EPOCH: Time = Time { system_time: SystemTime::UNIX_EPOCH };
-
-        pub fn now() -> Self {
-            Self::UNIX_EPOCH + Duration::from_nanos(Clock::utc().timestamp_nanos() as u64)
-        }
-
-        /// Computes saturating duration since `rhs`.
-        /// A value of `0` will returned in case given timestamp is greater than self.
-        pub fn duration_since(&self, rhs: Self) -> Duration {
-            self.system_time.duration_since(rhs.system_time).unwrap_or_default()
-        }
-
-        /// Time in `std::Duration` since `self`.
-        pub fn elapsed(&self) -> Duration {
-            Self::now().duration_since(*self)
-        }
-    }
-
-    impl Add<Duration> for Time {
-        type Output = Self;
-
-        fn add(self, other: Duration) -> Self {
-            Self { system_time: self.system_time + other }
-        }
-    }
-
-    impl Sub for Time {
-        type Output = Duration;
-
-        fn sub(self, other: Self) -> Self::Output {
-            self.system_time.duration_since(other.system_time).unwrap_or_default()
-        }
-    }
-
-    impl Sub<Duration> for Time {
-        type Output = Time;
-
-        fn sub(self, other: Duration) -> Self::Output {
-            Time::from(self.system_time.checked_sub(other).unwrap_or(UNIX_EPOCH))
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-        use borsh::{BorshDeserialize, BorshSerialize};
-
-        #[test]
-        fn test_operator() {
-            let now_st = SystemTime::now();
-
-            let now_nc: Time = now_st.into();
-
-            let t_nc = now_nc + Duration::from_nanos(123456);
-            let t_st = now_st + Duration::from_nanos(123456);
-
-            assert_eq!(t_nc.system_time, t_st);
-        }
-
-        #[test]
-        fn test_borsh() {
-            let now_nc = Time::now();
-
-            let mut v = Vec::new();
-            BorshSerialize::serialize(&now_nc, &mut v).unwrap();
-
-            let v2: &mut &[u8] = &mut v.as_slice();
-
-            let now2: Time = BorshDeserialize::deserialize(v2).unwrap();
-            assert_eq!(now_nc, now2);
-        }
+        let now2: Time = BorshDeserialize::deserialize(v2).unwrap();
+        assert_eq!(now_nc, now2);
     }
 }
