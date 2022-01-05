@@ -82,7 +82,7 @@ impl RoutingTableView {
         self.local_edges_info.get(other_peer).map_or(0, |x| x.nonce()) < nonce
     }
 
-    pub fn reachable_peers(&self) -> impl Iterator<Item = &PeerId> {
+    pub fn reachable_peers(&self) -> impl Iterator<Item = &PeerId> + ExactSizeIterator {
         self.peer_forwarding.keys()
     }
 
@@ -230,8 +230,8 @@ impl RoutingTableView {
     pub fn fetch_ping_pong(
         &self,
     ) -> (
-        impl Iterator<Item = (&usize, &(Ping, usize))>,
-        impl Iterator<Item = (&usize, &(Pong, usize))>,
+        impl Iterator<Item = (&usize, &(Ping, usize))> + ExactSizeIterator,
+        impl Iterator<Item = (&usize, &(Pong, usize))> + ExactSizeIterator,
     ) {
         (self.ping_info.iter(), self.pong_info.iter())
     }
@@ -249,18 +249,15 @@ impl RoutingTableView {
     /// Public interface for `account_peers`
     ///
     /// Get keys currently on cache.
-    pub fn get_accounts_keys(&mut self) -> impl Iterator<Item = &AccountId> {
+    pub fn get_accounts_keys(&mut self) -> impl Iterator<Item = &AccountId> + ExactSizeIterator {
         self.account_peers.iter().map(|(k, _v)| (k))
     }
 
     /// Get announce accounts on cache.
-    pub fn get_announce_accounts(&mut self) -> impl Iterator<Item = &AnnounceAccount> {
+    pub fn get_announce_accounts(
+        &mut self,
+    ) -> impl Iterator<Item = &AnnounceAccount> + ExactSizeIterator {
         self.account_peers.iter().map(|(_k, v)| v)
-    }
-
-    /// Get number of accounts
-    pub fn get_announce_accounts_size(&mut self) -> usize {
-        self.account_peers.len()
     }
 
     /// Get account announce from
