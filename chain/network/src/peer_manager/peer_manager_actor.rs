@@ -525,12 +525,11 @@ impl PeerManagerActor {
         });
     }
 
-    fn num_connected_peers(&self) -> usize {
-        self.connected_peers.len()
-    }
-
-    fn is_blacklisted(&self, addr: &SocketAddr) -> bool {
-        if let Some(blocked_ports) = self.config.blacklist.get(&addr.ip()) {
+    fn is_blacklisted(
+        blacklist: &HashMap<std::net::IpAddr, BlockedPorts>,
+        addr: &SocketAddr,
+    ) -> bool {
+        if let Some(blocked_ports) = blacklist.get(&addr.ip()) {
             match blocked_ports {
                 BlockedPorts::All => true,
                 BlockedPorts::Some(ports) => ports.contains(&addr.port()),
@@ -927,28 +926,16 @@ impl PeerManagerActor {
         });
     }
 
-    fn num_connected_outgoing_peers(&self) -> usize {
-        self.connected_peers
-            .values()
-            .filter(|active_peer| active_peer.peer_type == PeerType::Outbound)
-            .count()
-    }
-
-    fn num_archival_peers(&self) -> usize {
-        self.connected_peers
-            .values()
-            .filter(|active_peer| active_peer.full_peer_info.chain_info.archival)
-            .count()
-    }
-
     /// Check if it is needed to create a new outbound connection.
     /// If the number of active connections is less than `ideal_connections_lo` or
     /// (the number of outgoing connections is less than `minimum_outbound_peers`
     ///     and the total connections is less than `max_num_peers`)
     fn is_outbound_bootstrap_needed(&self) -> bool {
         let total_connections = self.connected_peers.len() + self.outgoing_peers.len();
-        let potential_outgoing_connections =
-            self.num_connected_outgoing_peers() + self.outgoing_peers.len();
+        let potential_outgoing_connections = (self.connected_peers.values())
+            .filter(|connected_peer| connected_peer.peer_type == PeerType::Outbound)
+            .count()
+            + self.outgoing_peers.len();
 
         (total_connections < self.config.ideal_connections_lo as usize
             || (total_connections < self.config.max_num_peers as usize
@@ -963,10 +950,8 @@ impl PeerManagerActor {
     /// Returns single random peer with close to the highest height
     fn highest_height_peers(&self) -> Vec<FullPeerInfo> {
         // This finds max height among peers, and returns one peer close to such height.
-        let max_height = match self
-            .connected_peers
-            .values()
-            .map(|active_peers| active_peers.full_peer_info.chain_info.height)
+        let max_height = match (self.connected_peers.values())
+            .map(|connected_peer| connected_peer.full_peer_info.chain_info.height)
             .max()
         {
             Some(height) => height,
@@ -1174,7 +1159,10 @@ impl PeerManagerActor {
         // Build safe set
         let mut safe_set = HashSet::new();
 
-        if self.num_connected_outgoing_peers() + self.outgoing_peers.len()
+        if (self.connected_peers.values())
+            .filter(|active_peer| active_peer.peer_type == PeerType::Outbound)
+            .count()
+            + self.outgoing_peers.len()
             <= self.config.minimum_outbound_peers as usize
         {
             for (peer, active) in self.connected_peers.iter() {
@@ -1185,7 +1173,9 @@ impl PeerManagerActor {
         }
 
         if self.config.archive
-            && self.num_archival_peers()
+            && (self.connected_peers.values())
+                .filter(|connected_peer| connected_peer.full_peer_info.chain_info.archival)
+                .count()
                 <= self.config.archival_peer_connections_lower_bound as usize
         {
             for (peer, active) in self.connected_peers.iter() {
@@ -1196,9 +1186,7 @@ impl PeerManagerActor {
         }
 
         // Find all recent connections
-        let mut recent_connections = self
-            .connected_peers
-            .iter()
+        let mut recent_connections = (self.connected_peers.iter())
             .filter_map(|(peer_id, active)| {
                 if active.last_time_received_message.elapsed() < self.config.peer_recent_time_window
                 {
@@ -1223,9 +1211,7 @@ impl PeerManagerActor {
         }
 
         // Build valid candidate list to choose the peer to be removed. All peers outside the safe set.
-        let candidates = self
-            .connected_peers
-            .keys()
+        let candidates = (self.connected_peers.keys())
             .filter_map(
                 |peer_id| {
                     if safe_set.contains(peer_id) {
@@ -1584,7 +1570,7 @@ impl PeerManagerActor {
                 .values()
                 .map(|a| a.full_peer_info.clone())
                 .collect::<Vec<_>>(),
-            num_connected_peers: self.num_connected_peers(),
+            num_connected_peers: self.connected_peers.len(),
             peer_max_count: self.config.max_num_peers,
             highest_height_peers: self.highest_height_peers(),
             sent_bytes_per_sec,
@@ -2136,7 +2122,9 @@ impl PeerManagerActor {
         let _d = delay_detector::DelayDetector::new("consolidate".into());
 
         // Check if this is a blacklisted peer.
-        if msg.peer_info.addr.as_ref().map_or(true, |addr| self.is_blacklisted(addr)) {
+        if (msg.peer_info.addr.as_ref())
+            .map_or(true, |addr| Self::is_blacklisted(&self.config.blacklist, addr))
+        {
             debug!(target: "network", peer_info = ?msg.peer_info, "Dropping connection from blacklisted peer or unknown address");
             return RegisterPeerResponse::Reject;
         }
