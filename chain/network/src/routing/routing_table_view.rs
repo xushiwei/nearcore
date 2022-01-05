@@ -239,8 +239,9 @@ impl RoutingTableView {
     pub fn info(&mut self) -> RoutingTableInfo {
         let account_peers = self
             .get_announce_accounts()
-            .into_iter()
-            .map(|announce_account| (announce_account.account_id, announce_account.peer_id))
+            .map(|announce_account| {
+                (announce_account.account_id.clone(), announce_account.peer_id.clone())
+            })
             .collect();
         RoutingTableInfo { account_peers, peer_forwarding: self.peer_forwarding.clone() }
     }
