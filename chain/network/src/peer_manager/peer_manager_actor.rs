@@ -529,14 +529,10 @@ impl PeerManagerActor {
         blacklist: &HashMap<std::net::IpAddr, BlockedPorts>,
         addr: &SocketAddr,
     ) -> bool {
-        if let Some(blocked_ports) = blacklist.get(&addr.ip()) {
-            match blocked_ports {
-                BlockedPorts::All => true,
-                BlockedPorts::Some(ports) => ports.contains(&addr.port()),
-            }
-        } else {
-            false
-        }
+        blacklist.get(&addr.ip()).map_or(false, |blocked_ports| match blocked_ports {
+            BlockedPorts::All => true,
+            BlockedPorts::Some(ports) => ports.contains(&addr.port()),
+        })
     }
 
     #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
@@ -1514,12 +1510,14 @@ impl PeerManagerActor {
     }
 
     // Determine if the given target is referring to us.
-    fn message_for_me(&mut self, target: &PeerIdOrHash) -> bool {
+    fn message_for_me(
+        routing_table_view: &mut RoutingTableView,
+        my_peer_id: &PeerId,
+        target: &PeerIdOrHash,
+    ) -> bool {
         match target {
-            PeerIdOrHash::PeerId(peer_id) => peer_id == &self.my_peer_id,
-            PeerIdOrHash::Hash(hash) => {
-                self.routing_table_view.compare_route_back(*hash, &self.my_peer_id)
-            }
+            PeerIdOrHash::PeerId(peer_id) => peer_id == my_peer_id,
+            PeerIdOrHash::Hash(hash) => routing_table_view.compare_route_back(*hash, my_peer_id),
         }
     }
 
@@ -1557,9 +1555,8 @@ impl PeerManagerActor {
     }
 
     /// Handle pong messages. Add pong temporary to the routing table, mostly used for testing.
-    fn handle_pong(&mut self, _ctx: &mut Context<Self>, pong: Pong) {
-        #[allow(unused_variables)]
-        let latency = self.routing_table_view.add_pong(pong);
+    fn handle_pong(&mut self, pong: Pong) {
+        self.routing_table_view.add_pong(pong);
     }
 
     pub(crate) fn get_network_info(&mut self) -> NetworkInfo {
@@ -2331,12 +2328,12 @@ impl PeerManagerActor {
             self.routing_table_view.add_route_back(msg.hash(), from.clone());
         }
 
-        if self.message_for_me(&msg.target) {
+        if Self::message_for_me(&mut self.routing_table_view, &self.my_peer_id, &msg.target) {
             // Handle Ping and Pong message if they are for us without sending to client.
             // i.e. Return false in case of Ping and Pong
             match &msg.body {
                 RoutedMessageBody::Ping(ping) => self.handle_ping(ctx, ping.clone(), msg.hash()),
-                RoutedMessageBody::Pong(pong) => self.handle_pong(ctx, pong.clone()),
+                RoutedMessageBody::Pong(pong) => self.handle_pong(pong.clone()),
                 _ => return true,
             }
 
