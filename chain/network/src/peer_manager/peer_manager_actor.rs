@@ -761,11 +761,9 @@ impl PeerManagerActor {
         self.connected_peers.remove(peer_id);
 
         #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
-        self.routing_table_addr
-            .send(RoutingTableMessages::RemovePeer(peer_id.clone()))
-            .into_actor(self)
-            .map(|_, _, _| ())
-            .spawn(ctx);
+        actix::spawn(
+            self.routing_table_addr.send(RoutingTableMessages::RemovePeer(peer_id.clone())),
+        );
 
         if let Some(edge) = self.routing_table_view.get_local_edge(peer_id) {
             if edge.edge_type() == EdgeState::Active {
