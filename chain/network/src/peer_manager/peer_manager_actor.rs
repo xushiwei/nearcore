@@ -3,8 +3,8 @@ use crate::peer::codec::Codec;
 use crate::peer::peer_actor::PeerActor;
 use crate::peer_manager::peer_store::{PeerStore, TrustLevel};
 use crate::private_actix::{
-    GetPeerId, PeerRequestResult, PeersRequest, RegisterPeer, RegisterPeerResponse, SendMessage,
-    StopMsg, Unregister, ValidateEdgeList,
+    PeerRequestResult, PeersRequest, RegisterPeer, RegisterPeerResponse, SendMessage, StopMsg,
+    Unregister, ValidateEdgeList,
 };
 use crate::routing::edge_validator_actor::EdgeValidatorHelper;
 use crate::routing::network_protocol::Edge;
@@ -17,13 +17,14 @@ use crate::stats::metrics::NetworkMetrics;
 use crate::types::{
     FullPeerInfo, NetworkClientMessages, NetworkInfo, NetworkRequests, NetworkResponses,
     PeerManagerMessageRequest, PeerManagerMessageResponse, PeerMessage, PeerRequest, PeerResponse,
-    PeersResponse, RoutingTableUpdate, SetAdvOptions,
+    PeersResponse, RoutingTableUpdate,
 };
 use actix::{
     Actor, ActorFuture, Addr, Arbiter, AsyncContext, Context, ContextFutureSpawner, Handler,
     Recipient, Running, StreamHandler, WrapFuture,
 };
 use futures::task::Poll;
+#[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
 use futures::FutureExt;
 use futures::{future, Stream, StreamExt};
 use near_network_primitives::types::{
@@ -1863,7 +1864,7 @@ impl PeerManagerActor {
             NetworkRequests::IbfMessage { peer_id, ibf_msg } => match ibf_msg {
                 crate::network_protocol::RoutingSyncV2::Version2(ibf_msg) => {
                     if let Some(addr) = self.connected_peers.get(&peer_id).map(|p| p.addr.clone()) {
-                        self.process_ibf_msg(ctx, &peer_id, ibf_msg, addr, throttle_controller)
+                        self.process_ibf_msg(&peer_id, ibf_msg, addr, throttle_controller)
                     }
                     NetworkResponses::NoResponse
                 }
@@ -2213,7 +2214,7 @@ impl PeerManagerActor {
     ) -> PeerManagerMessageResponse {
         match msg {
             PeerManagerMessageRequest::RoutedMessageFrom(msg) => {
-                PeerManagerMessageResponse::RoutedMessageFrom(self.handle_msg_routed_from(msg, ctx))
+                PeerManagerMessageResponse::RoutedMessageFrom(self.handle_msg_routed_from(msg))
             }
             PeerManagerMessageRequest::NetworkRequests(msg) => {
                 PeerManagerMessageResponse::NetworkResponses(self.handle_msg_network_requests(
@@ -2279,7 +2280,7 @@ impl PeerManagerActor {
 
     /// "Return" true if this message is for this peer and should be sent to the client.
     /// Otherwise try to route this message to the final receiver and return false.
-    fn handle_msg_routed_from(&mut self, msg: RoutedMessageFrom, ctx: &mut Context<Self>) -> bool {
+    fn handle_msg_routed_from(&mut self, msg: RoutedMessageFrom) -> bool {
         #[cfg(feature = "delay_detector")]
         let _d = delay_detector::DelayDetector::new(
             format!("routed message from {}", strum::AsStaticRef::as_static(&msg.msg.body)).into(),
@@ -2345,7 +2346,6 @@ impl PeerManagerActor {
     #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
     fn process_ibf_msg(
         &mut self,
-        ctx: &mut Context<PeerManagerActor>,
         peer_id: &PeerId,
         mut ibf_msg: crate::network_protocol::RoutingVersion2,
         addr: Addr<PeerActor>,
