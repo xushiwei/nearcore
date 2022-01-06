@@ -24,6 +24,7 @@ use actix::{
     Recipient, Running, StreamHandler, WrapFuture,
 };
 use futures::task::Poll;
+use futures::FutureExt;
 use futures::{future, Stream, StreamExt};
 use near_network_primitives::types::{
     AccountOrPeerIdOrHash, Ban, BlockedPorts, InboundTcpConnect, KnownPeerState, KnownPeerStatus,
@@ -550,10 +551,9 @@ impl PeerManagerActor {
                         Some(throttle_controller),
                     ))
                     .into_actor(act)
-                    .map(move |response, act, ctx| match response.map(|x| x.into_inner()) {
+                    .map(move |response, act, _ctx| match response.map(|x| x.into_inner()) {
                         Ok(RoutingTableMessagesResponse::AddPeerResponse { seed }) => act
                             .start_routing_table_syncv2(
-                                ctx,
                                 addr,
                                 seed,
                                 Some(throttle_controller_clone),
@@ -568,26 +568,29 @@ impl PeerManagerActor {
     #[cfg(feature = "protocol_feature_routing_exchange_algorithm")]
     fn start_routing_table_syncv2(
         &self,
-        ctx: &mut Context<Self>,
         addr: Addr<PeerActor>,
         seed: u64,
         throttle_controller: Option<ThrottleController>,
     ) {
-        self.routing_table_addr
-            .send(ActixMessageWrapper::new_without_size(
-                RoutingTableMessages::StartRoutingTableSync { seed },
-                throttle_controller,
-            ))
-            .into_actor(self)
-            .map(move |response, _act, _ctx| match response.map(|r| r.into_inner()) {
-                Ok(RoutingTableMessagesResponse::StartRoutingTableSyncResponse(response)) => {
-                    let _ = addr.do_send(SendMessage {
-                        message: crate::types::PeerMessage::RoutingTableSyncV2(response),
-                    });
-                }
-                _ => error!(target: "network", "expected StartRoutingTableSyncResponse"),
-            })
-            .spawn(ctx);
+        actix::spawn(
+            self.routing_table_addr
+                .send(ActixMessageWrapper::new_without_size(
+                    RoutingTableMessages::StartRoutingTableSync { seed },
+                    throttle_controller,
+                ))
+                .then(move |response| match response.map(|r| r.into_inner()) {
+                    Ok(RoutingTableMessagesResponse::StartRoutingTableSyncResponse(response)) => {
+                        let _ = addr.do_send(SendMessage {
+                            message: crate::types::PeerMessage::RoutingTableSyncV2(response),
+                        });
+                        future::ready(())
+                    }
+                    _ => {
+                        error!(target: "network", "expected StartRoutingTableSyncResponse");
+                        future::ready(())
+                    }
+                }),
+        );
     }
 
     /// Register a direct connection to a new peer. This will be called after successfully
@@ -990,7 +993,7 @@ impl PeerManagerActor {
     }
 
     /// Query current peers for more peers.
-    fn query_active_peers_for_more_peers(&mut self, ctx: &mut Context<Self>) {
+    fn query_active_peers_for_more_peers(&mut self) {
         let mut requests = futures::stream::FuturesUnordered::new();
         let msg = SendMessage { message: PeerMessage::PeersRequest };
         for (_, active_peer) in self.connected_peers.iter_mut() {
@@ -999,13 +1002,13 @@ impl PeerManagerActor {
                 requests.push(active_peer.addr.send(msg.clone()));
             }
         }
-        async move {
+        actix::spawn(async move {
             while let Some(response) = requests.next().await {
                 if let Err(e) = response {
                     debug!(target: "network", ?e, "Failed sending broadcast message(query_active_peers)");
                 }
             }
-        }.into_actor(self).spawn(ctx);
+        });
     }
 
     #[cfg(all(feature = "test_features", feature = "protocol_feature_routing_exchange_algorithm"))]
@@ -1288,7 +1291,7 @@ impl PeerManagerActor {
                     peer_info,
                 }));
             } else {
-                self.query_active_peers_for_more_peers(ctx);
+                self.query_active_peers_for_more_peers();
             }
         }
 
@@ -2374,31 +2377,32 @@ impl PeerManagerActor {
             edges,
             throttle_controller.clone(),
         );
-        self.routing_table_addr
-            .send(ActixMessageWrapper::new_without_size(
-                RoutingTableMessages::ProcessIbfMessage { peer_id: peer_id.clone(), ibf_msg },
-                throttle_controller,
-            ))
-            .into_actor(self)
-            .map(move |response, _act: &mut PeerManagerActor, _ctx| {
-                match response.map(|r| r.into_inner()) {
-                    Ok(RoutingTableMessagesResponse::ProcessIbfMessageResponse {
-                        ibf_msg: response_ibf_msg,
-                    }) => {
-                        if let Some(response_ibf_msg) = response_ibf_msg {
-                            let _ = addr.do_send(SendMessage {
-                                message: PeerMessage::RoutingTableSyncV2(
-                                    crate::network_protocol::RoutingSyncV2::Version2(
-                                        response_ibf_msg,
+        actix::spawn(
+            self.routing_table_addr
+                .send(ActixMessageWrapper::new_without_size(
+                    RoutingTableMessages::ProcessIbfMessage { peer_id: peer_id.clone(), ibf_msg },
+                    throttle_controller,
+                ))
+                .then(move |response| {
+                    match response.map(|r| r.into_inner()) {
+                        Ok(RoutingTableMessagesResponse::ProcessIbfMessageResponse {
+                            ibf_msg: response_ibf_msg,
+                        }) => {
+                            if let Some(response_ibf_msg) = response_ibf_msg {
+                                let _ = addr.do_send(SendMessage {
+                                    message: PeerMessage::RoutingTableSyncV2(
+                                        crate::network_protocol::RoutingSyncV2::Version2(
+                                            response_ibf_msg,
+                                        ),
                                     ),
-                                ),
-                            });
+                                });
+                            }
                         }
+                        _ => error!(target: "network", "expected ProcessIbfMessageResponse"),
                     }
-                    _ => error!(target: "network", "expected ProcessIbfMessageResponse"),
-                }
-            })
-            .spawn(ctx);
+                    future::ready(())
+                }),
+        );
     }
 }
 
