@@ -280,18 +280,14 @@ impl Actor for PeerManagerActor {
     }
 
     /// Try to gracefully disconnect from connected peers.
-    fn stopping(&mut self, ctx: &mut Self::Context) -> Running {
+    fn stopping(&mut self, _ctx: &mut Self::Context) -> Running {
         let msg = SendMessage { message: PeerMessage::Disconnect };
 
         for (_, active_peer) in self.connected_peers.iter() {
             active_peer.addr.do_send(msg.clone());
         }
 
-        self.routing_table_addr
-            .send(StopMsg {})
-            .into_actor(self)
-            .then(move |_, _, _| actix::fut::ready(()))
-            .spawn(ctx);
+        actix::spawn(self.routing_table_addr.send(StopMsg {}));
 
         Running::Stop
     }
@@ -1015,7 +1011,6 @@ impl PeerManagerActor {
     #[cfg(all(feature = "test_features", feature = "protocol_feature_routing_exchange_algorithm"))]
     fn adv_remove_edges_from_routing_table(
         &mut self,
-        ctx: &mut Context<Self>,
         edges: Vec<crate::network_protocol::SimpleEdge>,
     ) {
         // Create fake edges with no signature for unit test purposes
@@ -1032,11 +1027,7 @@ impl PeerManagerActor {
             })
             .collect();
         self.routing_table_view.remove_local_edges(&edges);
-        self.routing_table_addr
-            .send(RoutingTableMessages::AdvRemoveEdges(edges))
-            .into_actor(self)
-            .map(|_, _, _| ())
-            .spawn(ctx);
+        actix::spawn(self.routing_table_addr.send(RoutingTableMessages::AdvRemoveEdges(edges)));
     }
 
     fn wait_peer_or_remove(&mut self, ctx: &mut Context<Self>, edge: Edge) {
@@ -2011,7 +2002,7 @@ impl PeerManagerActor {
         }
         if let Some(remove_edges) = msg.remove_edges {
             debug!(target: "network", len = remove_edges.len(), "test_features remove_edges");
-            self.adv_remove_edges_from_routing_table(ctx, remove_edges);
+            self.adv_remove_edges_from_routing_table(remove_edges);
         }
         if let Some(true) = msg.prune_edges {
             debug!(target: "network", "test_features prune_edges");
