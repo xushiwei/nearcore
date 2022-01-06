@@ -3,8 +3,8 @@ use crate::peer::codec::Codec;
 use crate::peer::peer_actor::PeerActor;
 use crate::peer_manager::peer_store::{PeerStore, TrustLevel};
 use crate::private_actix::{
-    PeerRequestResult, PeersRequest, RegisterPeer, RegisterPeerResponse, SendMessage, StopMsg,
-    Unregister, ValidateEdgeList,
+    GetPeerId, PeerRequestResult, PeersRequest, RegisterPeer, RegisterPeerResponse, SendMessage,
+    StopMsg, Unregister, ValidateEdgeList,
 };
 use crate::routing::edge_validator_actor::EdgeValidatorHelper;
 use crate::routing::network_protocol::Edge;
@@ -17,7 +17,7 @@ use crate::stats::metrics::NetworkMetrics;
 use crate::types::{
     FullPeerInfo, NetworkClientMessages, NetworkInfo, NetworkRequests, NetworkResponses,
     PeerManagerMessageRequest, PeerManagerMessageResponse, PeerMessage, PeerRequest, PeerResponse,
-    PeersResponse, RoutingTableUpdate,
+    PeersResponse, RoutingTableUpdate, SetAdvOptions,
 };
 use actix::{
     Actor, ActorFuture, Addr, Arbiter, AsyncContext, Context, ContextFutureSpawner, Handler,
@@ -1322,7 +1322,6 @@ impl PeerManagerActor {
     /// from `EdgeValidatorActor` concurrent queue and sends edges to be added to `RoutingTableActor`.
     fn validate_edges_and_add_to_routing_table(
         &mut self,
-        _ctx: &mut Context<Self>,
         peer_id: PeerId,
         edges: Vec<Edge>,
         throttle_controller: Option<ThrottleController>,
@@ -1537,9 +1536,8 @@ impl PeerManagerActor {
     }
 
     /// Handle pong messages. Add pong temporary to the routing table, mostly used for testing.
-    fn handle_pong(&mut self, _ctx: &mut Context<Self>, pong: Pong) {
-        #[allow(unused_variables)]
-        let latency = self.routing_table_view.add_pong(pong);
+    fn handle_pong(&mut self, pong: Pong) {
+        self.routing_table_view.add_pong(pong);
     }
 
     pub(crate) fn get_network_info(&mut self) -> NetworkInfo {
@@ -1857,12 +1855,7 @@ impl PeerManagerActor {
                         actix::fut::ready(())
                     }).spawn(ctx);
 
-                self.validate_edges_and_add_to_routing_table(
-                    ctx,
-                    peer_id,
-                    edges,
-                    throttle_controller,
-                );
+                self.validate_edges_and_add_to_routing_table(peer_id, edges, throttle_controller);
 
                 NetworkResponses::NoResponse
             }
@@ -1972,11 +1965,7 @@ impl PeerManagerActor {
 
     #[cfg(feature = "test_features")]
     #[perf]
-    fn handle_msg_set_adv_options(
-        &mut self,
-        msg: crate::types::SetAdvOptions,
-        _ctx: &mut Context<Self>,
-    ) {
+    fn handle_msg_set_adv_options(&mut self, msg: crate::types::SetAdvOptions) {
         if let Some(disable_edge_propagation) = msg.disable_edge_propagation {
             self.adv_helper.adv_disable_edge_propagation = disable_edge_propagation;
         }
@@ -2034,7 +2023,6 @@ impl PeerManagerActor {
     fn handle_msg_get_peer_id(
         &mut self,
         msg: crate::private_actix::GetPeerId,
-        _ctx: &mut Context<Self>,
     ) -> crate::private_actix::GetPeerIdResult {
         crate::private_actix::GetPeerIdResult { peer_id: self.my_peer_id.clone() }
     }
@@ -2199,11 +2187,7 @@ impl PeerManagerActor {
     }
 
     #[perf]
-    fn handle_msg_peers_request(
-        &mut self,
-        msg: PeersRequest,
-        _ctx: &mut Context<Self>,
-    ) -> PeerRequestResult {
+    fn handle_msg_peers_request(&mut self, msg: PeersRequest) -> PeerRequestResult {
         #[cfg(feature = "delay_detector")]
         let _d = delay_detector::DelayDetector::new("peers request".into());
         PeerRequestResult {
@@ -2211,7 +2195,7 @@ impl PeerManagerActor {
         }
     }
 
-    fn handle_msg_peers_response(&mut self, msg: PeersResponse, _ctx: &mut Context<Self>) {
+    fn handle_msg_peers_response(&mut self, msg: PeersResponse) {
         #[cfg(feature = "delay_detector")]
         let _d = delay_detector::DelayDetector::new("peers response".into());
         if let Err(err) = self.peer_store.add_indirect_peers(
@@ -2244,12 +2228,10 @@ impl PeerManagerActor {
                 )
             }
             PeerManagerMessageRequest::PeersRequest(msg) => {
-                PeerManagerMessageResponse::PeerRequestResult(
-                    self.handle_msg_peers_request(msg, ctx),
-                )
+                PeerManagerMessageResponse::PeerRequestResult(self.handle_msg_peers_request(msg))
             }
             PeerManagerMessageRequest::PeersResponse(msg) => {
-                self.handle_msg_peers_response(msg, ctx);
+                self.handle_msg_peers_response(msg);
                 PeerManagerMessageResponse::PeersResponseResult(())
             }
             PeerManagerMessageRequest::PeerRequest(msg) => {
@@ -2257,7 +2239,7 @@ impl PeerManagerActor {
             }
             #[cfg(feature = "test_features")]
             PeerManagerMessageRequest::GetPeerId(msg) => {
-                PeerManagerMessageResponse::GetPeerIdResult(self.handle_msg_get_peer_id(msg, ctx))
+                PeerManagerMessageResponse::GetPeerIdResult(self.handle_msg_get_peer_id(msg))
             }
             PeerManagerMessageRequest::OutboundTcpConnect(msg) => {
                 self.handle_msg_outbound_tcp_connect(msg, ctx);
@@ -2283,7 +2265,7 @@ impl PeerManagerActor {
             }
             #[cfg(feature = "test_features")]
             PeerManagerMessageRequest::SetAdvOptions(msg) => {
-                self.handle_msg_set_adv_options(msg, ctx);
+                self.handle_msg_set_adv_options(msg);
                 PeerManagerMessageResponse::SetAdvOptions(())
             }
             #[cfg(feature = "test_features")]
@@ -2314,7 +2296,7 @@ impl PeerManagerActor {
             // i.e. Return false in case of Ping and Pong
             match &msg.body {
                 RoutedMessageBody::Ping(ping) => self.handle_ping(ping.clone(), msg.hash()),
-                RoutedMessageBody::Pong(pong) => self.handle_pong(ctx, pong.clone()),
+                RoutedMessageBody::Pong(pong) => self.handle_pong(pong.clone()),
                 _ => return true,
             }
 
@@ -2372,7 +2354,6 @@ impl PeerManagerActor {
         let mut edges: Vec<Edge> = Vec::new();
         std::mem::swap(&mut edges, &mut ibf_msg.edges);
         self.validate_edges_and_add_to_routing_table(
-            ctx,
             peer_id.clone(),
             edges,
             throttle_controller.clone(),
