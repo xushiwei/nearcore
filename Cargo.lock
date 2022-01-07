@@ -3083,7 +3083,6 @@ dependencies = [
  "reed-solomon-erasure",
  "serde",
  "serde_json",
- "sha2",
  "smart-default",
 ]
 
@@ -3150,7 +3149,6 @@ dependencies = [
 name = "near-rpc-error-core"
 version = "0.0.0"
 dependencies = [
- "proc-macro2",
  "quote",
  "serde",
  "serde_json",
@@ -3162,8 +3160,6 @@ name = "near-rpc-error-macro"
 version = "0.0.0"
 dependencies = [
  "near-rpc-error-core",
- "proc-macro2",
- "quote",
  "serde",
  "serde_json",
  "syn",
@@ -3198,15 +3194,12 @@ dependencies = [
  "derive_more",
  "elastic-array",
  "fs2",
- "lazy_static",
  "near-crypto",
  "near-primitives",
  "num_cpus",
  "rand 0.7.3",
  "rocksdb",
- "serde",
  "serde_json",
- "smart-default",
  "strum",
  "tempfile",
  "thiserror",
@@ -3243,7 +3236,6 @@ version = "0.0.0"
 dependencies = [
  "borsh 0.9.1",
  "deepsize",
- "hex",
  "near-account-id",
  "near-rpc-error-macro",
  "serde",
